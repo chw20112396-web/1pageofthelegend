@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'https://esm.sh/framer-motion@10.12.16';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore, shopItems } from './store.js';
 import StatBar from './components/StatBar.js';
 import CharacterDisplay from './components/CharacterDisplay.js';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'https://esm.sh/framer-motion@10.12.16';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../store.js';
 
 const CATEGORY_DETAILS = {

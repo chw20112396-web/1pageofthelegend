@@ -1,5 +1,5 @@
-import create from 'https://esm.sh/zustand@4.3.8';
-import { persist } from 'https://esm.sh/zustand@4.3.8/middleware';
+import create from 'zustand';
+import { persist } from 'zustand/middleware';
 
 // XP JRPG 성장 곡선 공식 적용
 export const getXpThreshold = (level) => {

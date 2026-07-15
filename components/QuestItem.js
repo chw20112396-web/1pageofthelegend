@@ -1,6 +1,6 @@
 import React from 'react';
-import { motion } from 'https://esm.sh/framer-motion@10.12.16';
-import confetti from 'https://esm.sh/canvas-confetti@1.6.0';
+import { motion } from 'framer-motion';
+import confetti from 'canvas-confetti';
 import { useGameStore } from '../store.js';
 
 const DIFFICULTY_STYLES = {
