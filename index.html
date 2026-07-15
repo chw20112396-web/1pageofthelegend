@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HeroForge — 현실 RPG 자기계발</title>
-  <meta name="description" content="일상의 노력을 RPG 성장으로 전환하는 자기계발 애플리케이션." />
+  <title>HeroForge — 나의 성장 여정</title>
+  <meta name="description" content="현실의 자기계발 목표를 달성하고, 그 성취감을 시각적으로 확인하세요. RPG 스타일의 성장 트래커." />
 
   <!-- Tailwind CSS v4 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
@@ -12,19 +12,20 @@
   <!-- Babel Standalone (JSX 컴파일용) -->
   <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
 
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Cinzel+Decorative:wght@700;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&family=Cinzel+Decorative:wght@700;900&display=swap" rel="stylesheet" />
 
   <style type="text/tailwindcss">
     @theme {
-      --font-sans: 'Inter', sans-serif;
+      --font-sans: 'Noto Sans KR', 'Inter', sans-serif;
       --font-fantasy: 'Cinzel Decorative', cursive;
-      --color-bg-primary: #040815;
-      --color-bg-secondary: #090e24;
-      --color-bg-card: rgba(16, 22, 51, 0.6);
+      --color-bg-primary: #030712;
+      --color-bg-secondary: #0a0f1e;
+      --color-bg-card: rgba(12, 18, 45, 0.65);
       --color-border-subtle: rgba(255, 255, 255, 0.04);
-      --color-border-glow: rgba(168, 85, 247, 0.2);
+      --color-border-glow: rgba(168, 85, 247, 0.25);
       --color-gold: #fbbf24;
       --color-gold-bright: #fde68a;
       --color-xp-bar: #7c3aed;
@@ -33,35 +34,54 @@
   </style>
 
   <style>
+    /* ===== Reset ===== */
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: smooth; font-size: 16px; }
     body {
-      font-family: 'Inter', sans-serif;
-      background-color: #040815;
+      font-family: 'Noto Sans KR', 'Inter', sans-serif;
+      background-color: #030712;
       color: #f1f5f9;
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 9999px; }
 
+    /* ===== Scrollbar ===== */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+    .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.06); border-radius: 9999px; }
+
+    /* ===== Ambient Background ===== */
     .ambient-bg {
       position: fixed;
       inset: 0;
       z-index: 0;
       pointer-events: none;
       background:
-        radial-gradient(ellipse 700px 500px at 15% 15%, rgba(124, 58, 237, 0.07), transparent),
-        radial-gradient(ellipse 600px 600px at 85% 25%, rgba(59, 130, 246, 0.05), transparent),
-        radial-gradient(ellipse 500px 400px at 50% 85%, rgba(251, 191, 36, 0.03), transparent);
+        radial-gradient(ellipse 800px 600px at 10% 10%, rgba(124, 58, 237, 0.08), transparent),
+        radial-gradient(ellipse 700px 700px at 90% 20%, rgba(59, 130, 246, 0.06), transparent),
+        radial-gradient(ellipse 600px 500px at 50% 90%, rgba(251, 191, 36, 0.04), transparent),
+        radial-gradient(ellipse 400px 400px at 30% 60%, rgba(236, 72, 153, 0.03), transparent);
     }
+
+    /* ===== Glassmorphism ===== */
     .glass {
-      background: rgba(11, 17, 43, 0.7);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      background: rgba(8, 14, 38, 0.72);
+      backdrop-filter: blur(24px) saturate(1.3);
+      -webkit-backdrop-filter: blur(24px) saturate(1.3);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .glass-light {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.05);
     }
+
+    /* ===== Gold Shine Text ===== */
     @keyframes gold-shine {
       0% { background-position: -100% 0; }
       100% { background-position: 200% 0; }
@@ -74,6 +94,8 @@
       background-clip: text;
       animation: gold-shine 5s ease-in-out infinite;
     }
+
+    /* ===== XP Bar Wave ===== */
     @keyframes xp-wave {
       0% { background-position: 0% 50%; }
       50% { background-position: 100% 50%; }
@@ -82,11 +104,157 @@
     .xp-bar-fill {
       background: linear-gradient(-45deg, #6366f1, #8b5cf6, #d946ef, #8b5cf6, #6366f1);
       background-size: 400% 400%;
-      animation: xp-wave 15s ease infinite;
+      animation: xp-wave 12s ease infinite;
     }
-    .scrollbar-thin::-webkit-scrollbar { width: 4px; }
-    .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 9999px; }
-    .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+
+    /* ===== Avatar Glow ===== */
+    @keyframes avatar-glow-pulse {
+      0%, 100% { box-shadow: 0 0 25px rgba(139, 92, 246, 0.3), 0 0 60px rgba(139, 92, 246, 0.1); }
+      50% { box-shadow: 0 0 35px rgba(139, 92, 246, 0.5), 0 0 80px rgba(139, 92, 246, 0.2); }
+    }
+    .avatar-glow { animation: avatar-glow-pulse 3s ease-in-out infinite; }
+
+    /* ===== Check Animation ===== */
+    @keyframes check-bounce {
+      0% { transform: scale(0); }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+    .check-animate { animation: check-bounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+    /* ===== Confetti Particles ===== */
+    @keyframes confetti-fall {
+      0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(30px) rotate(360deg); opacity: 0; }
+    }
+    .confetti-particle {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 2px;
+      animation: confetti-fall 0.8s ease-out forwards;
+    }
+
+    /* ===== Streak Fire ===== */
+    @keyframes fire-flicker {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2); opacity: 0.85; }
+    }
+    .streak-fire { animation: fire-flicker 1s ease-in-out infinite; }
+
+    /* ===== Progress Ring ===== */
+    @keyframes ring-fill {
+      from { stroke-dashoffset: 283; }
+    }
+    .progress-ring-circle {
+      transition: stroke-dashoffset 1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    /* ===== Entrance Animations ===== */
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slide-in-right {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ===== Level Up Flash ===== */
+    @keyframes level-up-flash {
+      0% { opacity: 0; transform: scale(0.5); }
+      30% { opacity: 1; transform: scale(1.1); }
+      70% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.3); }
+    }
+    .level-up-overlay {
+      animation: level-up-flash 2s ease-out forwards;
+    }
+
+    /* ===== Stat Bar Shimmer ===== */
+    @keyframes shimmer-slide {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+    .stat-bar-shimmer::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      animation: shimmer-slide 2.5s ease-in-out infinite;
+    }
+
+    /* ===== Quest Complete Strikethrough ===== */
+    .quest-strikethrough {
+      position: relative;
+    }
+    .quest-strikethrough::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, #a855f7, #6366f1);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    .quest-strikethrough.completed::after {
+      transform: scaleX(1);
+    }
+
+    /* ===== Custom Upload Button ===== */
+    .avatar-upload-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.6);
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      cursor: pointer;
+    }
+    .avatar-upload-overlay:hover {
+      opacity: 1;
+    }
+
+    /* ===== Tooltip ===== */
+    [data-tooltip] {
+      position: relative;
+    }
+    [data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%) scale(0.9);
+      background: rgba(15, 23, 42, 0.95);
+      color: #e2e8f0;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s ease;
+      border: 1px solid rgba(255,255,255,0.1);
+      z-index: 50;
+    }
+    [data-tooltip]:hover::after {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+    }
   </style>
 </head>
 <body>
