@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HeroForge — 현실 RPG 자기계발</title>
+  <meta name="description" content="일상의 노력을 RPG 성장으로 전환하는 자기계발 애플리케이션. 스탯을 키우고, 퀘스트를 완료하고, 영웅으로 성장하세요." />
+
+  <!-- Tailwind CSS v4 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Cinzel+Decorative:wght@700;900&display=swap" rel="stylesheet" />
+
+  <!-- Importmap 설정: 빌더(Webpack/Vite) 없이 브라우저 Native ESM 로딩 -->
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0?dev",
+        "react-dom": "https://esm.sh/react-dom@18.2.0/client?dev",
+        "https://esm.sh/zustand@4.3.8": "https://esm.sh/zustand@4.3.8",
+        "https://esm.sh/zustand@4.3.8/middleware": "https://esm.sh/zustand@4.3.8/middleware",
+        "https://esm.sh/framer-motion@10.12.16": "https://esm.sh/framer-motion@10.12.16",
+        "https://esm.sh/canvas-confetti@1.6.0": "https://esm.sh/canvas-confetti@1.6.0"
+      }
+    }
+  </script>
+
+  <style type="text/tailwindcss">
+    @theme {
+      --font-sans: 'Inter', sans-serif;
+      --font-fantasy: 'Cinzel Decorative', cursive;
+
+      --color-bg-primary: #040815;
+      --color-bg-secondary: #090e24;
+      --color-bg-card: rgba(16, 22, 51, 0.6);
+
+      --color-border-subtle: rgba(255, 255, 255, 0.04);
+      --color-border-glow: rgba(168, 85, 247, 0.2);
+
+      --color-gold: #fbbf24;
+      --color-gold-bright: #fde68a;
+      --color-xp-bar: #7c3aed;
+      --color-xp-bar-bright: #c4b5fd;
+    }
+  </style>
+
+  <style>
+    /* ===== Base & Scrollbar ===== */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #040815;
+      color: #f1f5f9;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 9999px; }
+
+    /* ===== Ambient Magical Background ===== */
+    .ambient-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 700px 500px at 15% 15%, rgba(124, 58, 237, 0.07), transparent),
+        radial-gradient(ellipse 600px 600px at 85% 25%, rgba(59, 130, 246, 0.05), transparent),
+        radial-gradient(ellipse 500px 400px at 50% 85%, rgba(251, 191, 36, 0.03), transparent);
+    }
+
+    /* ===== Glassmorphism Panel ===== */
+    .glass {
+      background: rgba(11, 17, 43, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* ===== Gold Shine Text Effect ===== */
+    @keyframes gold-shine {
+      0% { background-position: -100% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .gold-text {
+      background: linear-gradient(90deg, #ffd700, #fff7ad, #ffd700, #ffb800, #ffd700);
+      background-size: 200% 100%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gold-shine 5s ease-in-out infinite;
+    }
+
+    /* ===== XP Bar Fluid Fill ===== */
+    @keyframes xp-wave {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .xp-bar-fill {
+      background: linear-gradient(-45deg, #6366f1, #8b5cf6, #d946ef, #8b5cf6, #6366f1);
+      background-size: 400% 400%;
+      animation: xp-wave 15s ease infinite;
+    }
+
+    /* ===== Custom Scrollbar for activity log ===== */
+    .scrollbar-thin::-webkit-scrollbar {
+      width: 4px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 9999px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+  </style>
+</head>
+<body>
+  <!-- Ambient background -->
+  <div class="ambient-bg"></div>
+
+  <!-- React Mount Point -->
+  <div id="app" class="relative z-10 min-h-screen"></div>
+
+  <!-- React & App Bootstrap Script -->
+  <script type="module">
+    import React from 'react';
+    import ReactDOM from 'react-dom';
+    import App from './App.js';
+
+    const root = ReactDOM.createRoot(document.getElementById('app'));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>
