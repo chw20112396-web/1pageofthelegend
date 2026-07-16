@@ -981,7 +981,7 @@ const App = () => {
     <div className="min-h-screen flex flex-col">
       {/* ===== HEADER ===== */}
       <header className="sticky top-0 z-30 glass border-b border-white/5">
-        <div className="max-w-6xl mx-auto px-5 md:px-8 py-4 md:py-5">
+        <div className="max-w-7xl mx-auto px-5 md:px-8 py-4 md:py-5">
           <div className="flex items-center gap-5">
             {/* Avatar */}
             <AvatarDisplay
@@ -1062,19 +1062,20 @@ const App = () => {
 
 
       {/* ===== MAIN CONTENT ===== */}
-      <main className="flex-1 max-w-6xl mx-auto w-full px-5 md:px-8 py-6 md:py-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-5 md:px-8 py-6 md:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
 
           {/* ===== LEFT COLUMN: Stats ===== */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:col-span-3 flex flex-col gap-6" style={{ minHeight: 'calc(100vh - 10rem)' }}>
             {/* Stats Panel */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
-              className="glass rounded-2xl p-6 md:p-7 border border-white/6"
+              className="glass rounded-2xl border border-white/6 flex flex-col"
+              style={{ minHeight: 'calc(100vh - 12rem)' }}
             >
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between p-6 md:p-7 pb-4 flex-shrink-0">
                 <h2 className="text-base font-bold text-white/70 flex items-center gap-2">
                   <span className="text-xl">⚔️</span> 능력치
                 </h2>
@@ -1084,7 +1085,7 @@ const App = () => {
                   </span>
                 )}
               </div>
-              <div className="space-y-5">
+              <div className="overflow-y-auto scrollbar-thin px-6 md:px-7 pb-6 md:pb-7 space-y-5 flex-1">
                 {Object.entries(stats).map(([key, value]) => (
                   <StatBar
                     key={key}
@@ -1099,7 +1100,7 @@ const App = () => {
           </div>
 
           {/* ===== CENTER COLUMN: Daily Goals (MAIN FOCUS) ===== */}
-          <div className="lg:col-span-6 space-y-6">
+          <div className="lg:col-span-5 flex flex-col gap-6" style={{ minHeight: 'calc(100vh - 10rem)' }}>
             {/* Today's Summary */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -1118,7 +1119,8 @@ const App = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="glass rounded-2xl p-6 md:p-8 border border-purple-500/10"
+              className="glass rounded-2xl p-6 md:p-8 border border-purple-500/10 flex flex-col"
+              style={{ minHeight: 'calc(100vh - 22rem)' }}
             >
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -1193,17 +1195,20 @@ const App = () => {
           </div>
 
           {/* ===== RIGHT COLUMN: Activity Log ===== */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:col-span-4 flex flex-col gap-6" style={{ minHeight: 'calc(100vh - 10rem)' }}>
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
-              className="glass rounded-2xl p-6 md:p-7 border border-white/6"
+              className="glass rounded-2xl border border-white/6 flex flex-col"
+              style={{ minHeight: 'calc(100vh - 12rem)' }}
             >
-              <h2 className="text-base font-bold text-white/70 mb-5 flex items-center gap-2">
+              <h2 className="text-base font-bold text-white/70 p-6 md:p-7 pb-4 flex-shrink-0 flex items-center gap-2">
                 <span className="text-xl">📜</span> 활동 기록
               </h2>
-              <ActivityFeed activities={activities} />
+              <div className="overflow-y-auto scrollbar-thin px-6 md:px-7 pb-6 md:pb-7 flex-1">
+                <ActivityFeed activities={activities} />
+              </div>
             </motion.div>
           </div>
 
@@ -1212,7 +1217,7 @@ const App = () => {
 
       {/* ===== FOOTER ===== */}
       <footer className="glass border-t border-white/5 py-4">
-        <div className="max-w-6xl mx-auto px-5 md:px-8 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-5 md:px-8 flex items-center justify-between">
           <p className="text-xs text-white/20">
             HeroForge — 나의 성장 여정
           </p>
