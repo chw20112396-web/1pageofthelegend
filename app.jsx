@@ -45,17 +45,24 @@ const TIER_CONFIG = {
 };
 
 const ITEMS_DB = [
-  { id: 'eq_int', name: '지식의 서',       emoji: '📚', type: 'equipment',  stat: 'INT', bonus: 2, desc: 'INT 보상 +2 추가',    rarity: 'common'   },
-  { id: 'eq_str', name: '강철 의지 반지',  emoji: '💍', type: 'equipment',  stat: 'STR', bonus: 2, desc: 'STR 보상 +2 추가',    rarity: 'common'   },
-  { id: 'eq_wis', name: '현자의 안경',     emoji: '🔮', type: 'equipment',  stat: 'WIS', bonus: 2, desc: 'WIS 보상 +2 추가',    rarity: 'uncommon' },
-  { id: 'eq_agi', name: '번개 발목 밴드',  emoji: '⚡', type: 'equipment',  stat: 'AGI', bonus: 2, desc: 'AGI 보상 +2 추가',    rarity: 'uncommon' },
-  { id: 'eq_vit', name: '생명의 부적',     emoji: '🧿', type: 'equipment',  stat: 'VIT', bonus: 2, desc: 'VIT 보상 +2 추가',    rarity: 'uncommon' },
-  { id: 'eq_cha', name: '카리스마 망토',   emoji: '🪄', type: 'equipment',  stat: 'CHA', bonus: 2, desc: 'CHA 보상 +2 추가',    rarity: 'uncommon' },
+  { id: 'eq_int', name: '지식의 서',       emoji: '📚', type: 'equipment',  stat: 'INT', bonus: 2, slot: 'WEAPON', desc: 'INT 보상 +2 (장착 시 적용)',    rarity: 'common'   },
+  { id: 'eq_str', name: '강철 의지 반지',  emoji: '💍', type: 'equipment',  stat: 'STR', bonus: 2, slot: 'ARMOR',  desc: 'STR 보상 +2 (장착 시 적용)',    rarity: 'common'   },
+  { id: 'eq_wis', name: '현자의 안경',     emoji: '🔮', type: 'equipment',  stat: 'WIS', bonus: 2, slot: 'HAT',    desc: 'WIS 보상 +2 (장착 시 적용)',    rarity: 'uncommon' },
+  { id: 'eq_agi', name: '번개 발목 밴드',  emoji: '⚡', type: 'equipment',  stat: 'AGI', bonus: 2, slot: 'ARMOR',  desc: 'AGI 보상 +2 (장착 시 적용)',    rarity: 'uncommon' },
+  { id: 'eq_vit', name: '생명의 부적',     emoji: '🧿', type: 'equipment',  stat: 'VIT', bonus: 2, slot: 'WEAPON', desc: 'VIT 보상 +2 (장착 시 적용)',    rarity: 'uncommon' },
+  { id: 'eq_cha', name: '카리스마 망토',   emoji: '🪄', type: 'equipment',  stat: 'CHA', bonus: 2, slot: 'HAT',    desc: 'CHA 보상 +2 (장착 시 적용)',    rarity: 'uncommon' },
   { id: 'cs_xp',  name: '경험치 물약',     emoji: '🧪', type: 'consumable', effect: { xp: 100 },       desc: 'XP +100 즉시 획득', rarity: 'common'   },
   { id: 'cs_gp',  name: '황금 조각',       emoji: '🪙', type: 'consumable', effect: { gp: 50 },        desc: 'GP +50 즉시 획득',  rarity: 'common'   },
   { id: 'cs_all', name: '만능 강화석',     emoji: '💎', type: 'consumable', effect: { allStats: 1 },   desc: '전 능력치 +1',      rarity: 'rare'     },
   { id: 'cs_pts', name: '성장의 결정',     emoji: '✨', type: 'consumable', effect: { statPoints: 3 }, desc: '능력치 포인트 +3',  rarity: 'rare'     },
 ];
+
+// Equipment slot config — emoji positions on the paper-doll avatar
+const SLOT_CONFIG = {
+  HAT:    { label: '머리',  icon: '🪖', style: { top: '2%',  left: '50%', transform: 'translateX(-50%)', fontSize: '1.5rem' } },
+  WEAPON: { label: '무기',  icon: '⚔️', style: { top: '52%', left: '4%',  fontSize: '1.4rem' } },
+  ARMOR:  { label: '갑옷',  icon: '🛡️', style: { top: '56%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.4rem' } },
+};
 
 const RARITY_CONFIG = {
   common:   { label: '일반', color: 'text-slate-300',   bg: 'bg-slate-500/10',   border: 'border-slate-500/20' },
@@ -141,6 +148,7 @@ function getInitialState() {
         if (parsed.monsterHp === undefined) parsed.monsterHp = MONSTERS_DB[0].baseHp;
         if (parsed.monsterKillCount === undefined) parsed.monsterKillCount = 0;
         if (!parsed.inventory) parsed.inventory = [];
+        if (!parsed.equippedItems) parsed.equippedItems = { HAT: null, WEAPON: null, ARMOR: null };
         return parsed;
       }
     }
@@ -167,6 +175,7 @@ function getInitialState() {
     monsterHp: MONSTERS_DB[0].baseHp,
     monsterKillCount: 0,
     inventory: [],
+    equippedItems: { HAT: null, WEAPON: null, ARMOR: null },
   };
 }
 
@@ -198,6 +207,7 @@ const useGameStore = create((set, get) => ({
       monsterHp: state.monsterHp,
       monsterKillCount: state.monsterKillCount,
       inventory: state.inventory,
+      equippedItems: state.equippedItems,
     };
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave)); } catch(e) {}
   },
@@ -228,11 +238,13 @@ const useGameStore = create((set, get) => ({
       leveledUp = true;
     }
 
-    // Stat reward — apply equipment bonuses
+    // Stat reward — apply equipped-item bonuses only
     const newStats = { ...state.stats };
+    const equippedInstances = Object.values(state.equippedItems).filter(Boolean);
+    const equippedItemObjs = equippedInstances.map(iid => state.inventory.find(i => i.instanceId === iid)).filter(Boolean);
     if (quest.statReward) {
       Object.entries(quest.statReward).forEach(([stat, amount]) => {
-        const equip = state.inventory.find(i => i.type === 'equipment' && i.stat === stat);
+        const equip = equippedItemObjs.find(i => i.stat === stat);
         const bonus = equip ? (equip.bonus || 0) : 0;
         newStats[stat] = Math.min(100, (newStats[stat] || 1) + amount + bonus);
       });
@@ -378,7 +390,29 @@ const useGameStore = create((set, get) => ({
       activities: [], completedToday: 0, totalCompleted: 0,
       currentMonsterIndex: 0, monsterHp: MONSTERS_DB[0].baseHp,
       monsterKillCount: 0, inventory: [], lootDrop: null,
+      equippedItems: { HAT: null, WEAPON: null, ARMOR: null },
     });
+  },
+
+  equipItem: (instanceId) => {
+    const state = get();
+    const item = state.inventory.find(i => i.instanceId === instanceId);
+    if (!item || item.type !== 'equipment' || !item.slot) return;
+    const slot = item.slot;
+    const current = state.equippedItems[slot];
+    // Toggle: if already equipped, unequip
+    if (current === instanceId) {
+      set({ equippedItems: { ...state.equippedItems, [slot]: null } });
+    } else {
+      set({ equippedItems: { ...state.equippedItems, [slot]: instanceId } });
+    }
+    get()._persist();
+  },
+
+  unequipSlot: (slot) => {
+    const state = get();
+    set({ equippedItems: { ...state.equippedItems, [slot]: null } });
+    get()._persist();
   },
 }));
 
@@ -424,16 +458,49 @@ const ProgressRing = ({ progress, size = 100, strokeWidth = 8, color = '#8b5cf6'
   );
 };
 
-// --- Avatar ---
+// --- Avatar (Paper Doll) ---
 const AvatarDisplay = ({ avatarSrc, onUpload, level }) => {
   const fileInputRef = useRef(null);
+  const { equippedItems, inventory } = useGameStore();
+
+  // Resolve equipped item objects from instanceIds
+  const getEquippedItem = (slot) => {
+    const iid = equippedItems[slot];
+    if (!iid) return null;
+    return inventory.find(i => i.instanceId === iid) || null;
+  };
+
+  const baseSrc = avatarSrc || './avatar_base.png';
+
   return (
     <div className="relative flex-shrink-0">
       <div
-        className="avatar-glow w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-purple-900/50 to-indigo-900/50 border-2 border-purple-500/30 flex items-center justify-center overflow-hidden cursor-pointer group"
+        className="avatar-glow w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-purple-900/50 to-indigo-900/50 border-2 border-purple-500/30 flex items-center justify-center overflow-hidden cursor-pointer group relative"
         onClick={() => fileInputRef.current?.click()}
       >
-        {avatarSrc ? <img src={avatarSrc} alt="아바타" className="w-full h-full object-cover" /> : <span className="text-5xl md:text-6xl select-none">⚔️</span>}
+        <img src={baseSrc} alt="아바타" className="w-full h-full object-cover" />
+
+        {/* Paper-doll equipment overlays */}
+        {Object.entries(SLOT_CONFIG).map(([slot, cfg]) => {
+          const item = getEquippedItem(slot);
+          if (!item) return null;
+          return (
+            <AnimatePresence key={slot}>
+              <motion.span
+                key={item.instanceId}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: 'spring', damping: 14, stiffness: 320 }}
+                className="absolute pointer-events-none select-none leading-none"
+                style={{ ...cfg.style, position: 'absolute', lineHeight: 1 }}
+              >
+                {item.emoji}
+              </motion.span>
+            </AnimatePresence>
+          );
+        })}
+
         <div className="avatar-upload-overlay rounded-2xl">
           <div className="flex flex-col items-center gap-1">
             <svg className="w-6 h-6 text-white/90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -878,34 +945,51 @@ const MonsterBattlePanel = ({ lastDamage, onDamageDone }) => {
 };
 
 // --- Item Card ---
-const ItemCard = ({ item, onUse }) => {
+const ItemCard = ({ item, onUse, onEquip, isEquipped }) => {
   const rarity = RARITY_CONFIG[item.rarity];
+  const slotCfg = item.slot ? SLOT_CONFIG[item.slot] : null;
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${rarity.bg} ${rarity.border}`}>
+      className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${isEquipped ? 'border-amber-500/50 bg-amber-500/5' : `${rarity.bg} ${rarity.border}`}`}>
       <span className="text-2xl flex-shrink-0">{item.emoji}</span>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 mb-0.5">
+        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${rarity.bg} ${rarity.color} border ${rarity.border}`}>{rarity.label}</span>
+          {slotCfg && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-500/20 text-slate-300 border border-slate-500/20">{slotCfg.icon} {slotCfg.label}</span>}
+          {isEquipped && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">장착 중</span>}
           <span className="text-sm font-bold text-white/90 truncate">{item.name}</span>
         </div>
         <p className="text-xs text-white/40">{item.desc}</p>
         <p className="text-[10px] text-white/20 mt-0.5">{timeAgo(item.acquiredAt)}에 획득</p>
       </div>
-      {onUse && (
-        <button onClick={onUse} className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-bold hover:bg-purple-500/30 transition-all active:scale-95">
-          사용
-        </button>
-      )}
+      <div className="flex flex-col gap-1.5 flex-shrink-0">
+        {onEquip && (
+          <button onClick={onEquip}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 ${
+              isEquipped
+                ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
+                : 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30'
+            }`}>
+            {isEquipped ? '해제' : '장착'}
+          </button>
+        )}
+        {onUse && (
+          <button onClick={onUse} className="px-3 py-1.5 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-bold hover:bg-purple-500/30 transition-all active:scale-95">
+            사용
+          </button>
+        )}
+      </div>
     </motion.div>
   );
 };
 
 // --- Inventory Panel ---
 const InventoryPanel = () => {
-  const { inventory, useItem } = useGameStore();
+  const { inventory, useItem, equipItem, equippedItems } = useGameStore();
   const equipment   = inventory.filter(i => i.type === 'equipment');
   const consumables = inventory.filter(i => i.type === 'consumable');
+
+  const isEquipped = (instanceId) => Object.values(equippedItems).includes(instanceId);
 
   if (inventory.length === 0) {
     return (
@@ -922,10 +1006,32 @@ const InventoryPanel = () => {
       {equipment.length > 0 && (
         <div>
           <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-2">장비 아이템 ({equipment.length})</p>
-          <div className="space-y-2">
-            {equipment.map(item => <ItemCard key={item.instanceId} item={item} />)}
+
+          {/* Equipped slots summary */}
+          <div className="flex gap-2 mb-3">
+            {Object.entries(SLOT_CONFIG).map(([slot, cfg]) => {
+              const iid = equippedItems[slot];
+              const item = iid ? inventory.find(i => i.instanceId === iid) : null;
+              return (
+                <div key={slot} className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl border text-center ${item ? 'bg-amber-500/8 border-amber-500/25' : 'bg-white/[0.02] border-white/8'}`}>
+                  <span className="text-lg leading-none">{item ? item.emoji : cfg.icon}</span>
+                  <span className="text-[9px] font-bold text-white/30">{cfg.label}</span>
+                </div>
+              );
+            })}
           </div>
-          <p className="text-[10px] text-white/20 mt-2 text-center">장비 아이템은 동일 스탯 퀘스트 완료 시 자동 적용됩니다</p>
+
+          <div className="space-y-2">
+            {equipment.map(item => (
+              <ItemCard
+                key={item.instanceId}
+                item={item}
+                isEquipped={isEquipped(item.instanceId)}
+                onEquip={() => equipItem(item.instanceId)}
+              />
+            ))}
+          </div>
+          <p className="text-[10px] text-white/20 mt-2 text-center">장착한 장비는 퀘스트 완료 시 스탯 보너스를 줍니다</p>
         </div>
       )}
       {consumables.length > 0 && (
