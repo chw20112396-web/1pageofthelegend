@@ -1,0 +1,73 @@
+# Role: 당신은 게이미피케이션(Gamification) 설계와 React, Tailwind CSS, Zustand, Framer Motion 구현에 통달한 세계 최고의 풀스택 프론트엔드 개발자입니다.
+
+# Goal
+현재 작동 중인 '현실 MMORPG 자기계발 웹 앱'의 핵심 재미 요소를 대폭 업그레이드하고자 합니다. 기존의 3단 레이아웃과 몬스터 토벌전 구조를 유지하면서, 다음의 5가지 핵심 게이미피케이션 시스템을 유기적으로 융합한 대형 업데이트 코드를 작성해 주세요.
+
+---
+
+## [핵심 시스템 설계 요구사항]
+
+### 1. 토벤머리 페이퍼돌 & 전직 시스템 (Avatar & Class Evolution)
+- **기본 이미지:** `public/avatar_base.png` (토벤머리 캐릭터)를 베이스로 사용합니다.
+- **장비 장착 레이어:** 머리(`HAT`), 오른손(`WEAPON`), 상체(`ARMOR`) 슬롯에 장착된 장비의 이모지(Emoji)를 캐릭터 위에 정확히 `absolute` 좌표로 오버레이합니다.
+  - 모자 (`HAT`): `top-[12%] left-[46%] text-3xl`
+  - 무기 (`WEAPON`): `top-[55%] left-[22%] text-4xl`
+  - 갑옷 (`ARMOR`): `top-[62%] left-[43%] text-3xl`
+- **전직 조건 및 진화:** - 캐릭터의 특정 스탯 수치에 따라 '전직'이 가능해집니다.
+    * **전사 (Warrior):** 근력(STR) + 체력(VIT) 합산 30 이상
+    * **마법사 (Mage):** 지능(INT) + 지혜(WIS) 합산 30 이상
+    * **도적 (Rogue):** 민첩(AGI) + 매력(CHA) 합산 30 이상
+  - 전직 버튼을 누르면 화면이 번쩍이며 아바타 뒤에 **'직업별 고유 오라(Aura) 이펙트'**가 생기고, 타이틀이 [초보 모험가]에서 [전설의 전사], [대마법사] 등으로 변경됩니다. 오라는 CSS 그라데이션 애니메이션(Pulse/Spin)으로 표현해 주세요.
+
+### 2. 가차(Gacha) 상점 & 아이템 등급제 (Item Rarity & Random Box)
+- 상점에 정가 구매 외에 **"명예로운 은빛 상자 (50 GP)"**와 **"전설의 금빛 상자 (150 GP)"** 뽑기 상품을 만드세요.
+- **뽑기 연출:** 상자를 열면 Framer Motion을 통해 보물상자가 덜덜덜 흔들리다가(Shake) 팡! 터지면서 랜덤한 장비가 등장하는 애니메이션 팝업을 구현하세요.
+- **아이템 등급:** 일반(C/회색) - 희귀(B/파란색) - 영웅(A/보라색) - 전설(S/금색) 테두리와 네온 효과를 적용하여 아이템의 가치를 시각화하세요.
+- **스탯 가산:** 높은 등급의 장비를 장착할수록 퀘스트 완료 시 얻는 경험치(XP)와 골드(GP) 배율이 비약적으로 증가합니다.
+
+### 3. 미루기 망령의 역습 & 방어력 시스템 (Monster Counterattack)
+- **역습 발동:** 매일 자정이 지나거나 '일일 초기화'가 발생할 때, 전날 달성하지 못한 미완료 일일 퀘스트가 존재하면 **"미루기 망령이 침입했습니다!"** 이벤트가 발생합니다.
+- **패널티:** 미완료 퀘스트 1개당 10 GP가 손실됩니다.
+- **방어 메커니즘:** 이때 장착 중인 갑옷(`ARMOR`)이나 모자(`HAT`)에 설정된 **'방어력(Defense)'** 수치만큼 패널티 골드 손실을 경감(방어)합니다.
+- **시스템 로그:** 일지(Log)에 "미루기 망령의 습격으로 30 GP를 잃을 뻔했으나, [영웅의 방패]의 방어력 덕분에 10 GP만 잃었습니다!"와 같은 몰입감 넘치는 시스템 로그를 출력하세요.
+
+### 4. 퀘스트 콤보 & 피버 타임 (Combo & Fever Time)
+- **콤보 시스템:** 퀘스트를 연속으로 완료할 때마다 화면 중앙에 **"1 COMBO!"**, **"2 COMBO!"** 텍스트가 Framer Motion 팝업으로 날아와 꽂히는 효과를 추가하세요.
+- **피버 타임:** 오늘의 일일 퀘스트를 100% 모두 완료(All Clear)하는 즉시 **"FEVER TIME"** 상태가 활성화됩니다.
+  - 피버 타임 동안에는 아바타 테두리가 붉게 불타오르며, 이후 작성하는 회고 일지나 추가 활동에서 획득하는 모든 경험치와 스탯이 1.5배로 증폭됩니다.
+
+---
+
+## [상태 관리 및 데이터 스키마 (`useStore.js`)]
+Zustand 스토어에 위 기획을 처리할 수 있는 아래의 확장 상태를 구현해 주세요:
+
+```typescript
+interface IItem {
+  id: string;
+  name: string;
+  type: 'HAT' | 'WEAPON' | 'ARMOR';
+  rarity: 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+  emoji: string;
+  effectText: string;
+  price: number;
+  defense: number; // 방어력 수치 (망령 역습 방어용)
+  bonusMultiplier: number; // 스탯/경험치 보너스 배율 (예: 1.15)
+}
+
+interface IGameState {
+  userClass: '초보 모험가' | '전사' | '마법사' | '도적';
+  gold: number;
+  combo: number;
+  isFever: boolean;
+  inventory: IItem[];
+  equippedItems: { HAT: IItem | null; WEAPON: IItem | null; ARMOR: IItem | null };
+  logs: string[];
+  
+  // Actions
+  completeQuest: (questId: string) => void;
+  buyGachaBox: (boxType: 'SILVER' | 'GOLD') => void;
+  equipItem: (itemId: string) => void;
+  unequipItem: (slot: 'HAT' | 'WEAPON' | 'ARMOR') => void;
+  promoteClass: (targetClass: '전사' | '마법사' | '도적') => void;
+  triggerDailyReset: () => void; // 미루기 망령 역습 체크 포함
+}
