@@ -125,6 +125,68 @@ const GACHA_POOL = [
 ];
 
 // ==========================================
+// TITLE / PET / SUDDEN MISSION DATA
+// ==========================================
+const TITLE_DB = {
+  ghost_slayer: {
+    id: 'ghost_slayer', name: '미루기 도살자',
+    effectText: '모든 데미지 +15%',
+    gradient: 'from-red-400 to-orange-400',
+    condition: '미루기 망령 5회 처치',
+    check: (s) => (s.ghostAttackCount || 0) >= 5,
+  },
+  dawn_ruler: {
+    id: 'dawn_ruler', name: '새벽의 지배자',
+    effectText: 'INT +3 보너스',
+    gradient: 'from-blue-300 to-cyan-300',
+    condition: '오전 8시 이전 퀘스트 완료',
+    check: (s) => (s.dawnCompleteCount || 0) >= 1,
+  },
+  destroyer: {
+    id: 'destroyer', name: '파괴의 손가락',
+    effectText: '골드 획득량 ×1.1',
+    gradient: 'from-purple-400 to-pink-400',
+    condition: '장비 강화 성공 5회',
+    check: (s) => (s.enhanceSuccessCount || 0) >= 5,
+  },
+  godlife: {
+    id: 'godlife', name: '갓생의 화신',
+    effectText: '경험치 획득량 ×1.15',
+    gradient: 'from-amber-400 to-yellow-300',
+    condition: '피버 타임 3회 발동',
+    check: (s) => (s.feverTriggerCount || 0) >= 3,
+  },
+};
+
+const PET_DB = {
+  slime: { id: 'slime', name: '아기 슬라임',      emoji: '🟢', effectText: '퀘스트 GP +5%',          goldBonus: 0.05,  cost: 200 },
+  owl:   { id: 'owl',   name: '집중하는 올빼미',  emoji: '🦉', effectText: 'INT/WIS 획득 +10%',       intWisBonus: 0.1, cost: 250 },
+  shiba: { id: 'shiba', name: '달리는 시바견',    emoji: '🐕', effectText: 'VIT 경험치 획득 +10%',    vitBonus: 0.1,    cost: 220 },
+};
+
+const SUDDEN_MISSIONS_POOL = [
+  { id: 'sm1', title: '🚨 [돌발] 뇌에 산소 공급하기!',        desc: '지금 즉시 가벼운 스트레칭이나 물 한 컵을 마시세요!',         timeLimit: 15 * 60, rewardGp: 150, rewardXp: 300 },
+  { id: 'sm2', title: '🚨 [돌발] 딥 워크(Deep Work) 돌입!',   desc: '딴짓하지 않고 30분 동안 집중 타이머를 작동시키세요!',         timeLimit: 30 * 60, rewardGp: 300, rewardXp: 500 },
+  { id: 'sm3', title: '🚨 [돌발] 지금 당장 회고록 작성!',     desc: '오늘 배운 것을 3줄 이상 기록하세요!',                         timeLimit: 10 * 60, rewardGp: 100, rewardXp: 200 },
+  { id: 'sm4', title: '🚨 [돌발] 감사 일기 적기!',            desc: '오늘 감사한 일 3가지를 지금 바로 적어보세요!',                 timeLimit: 5  * 60, rewardGp:  80, rewardXp: 150 },
+];
+
+// Enhancement success rates by target level
+const ENHANCE_RATES = [1.0, 1.0, 1.0, 0.70, 0.50, 0.35, 0.25];
+const ENHANCE_COST_GP = [0, 50, 100, 150, 200, 250, 300];
+
+function getEnhancedStats(item) {
+  const lv = item.enhanceLevel || 0;
+  if (lv === 0) return item;
+  const f = Math.pow(1.1, lv);
+  return {
+    ...item,
+    bonusMultiplier: item.bonusMultiplier > 1.0 ? Math.round(item.bonusMultiplier * f * 1000) / 1000 : item.bonusMultiplier,
+    defense: item.defense > 0 ? Math.floor(item.defense * f) : 0,
+  };
+}
+
+// ==========================================
 // HELPER FUNCTIONS
 // ==========================================
 function rollLoot(monster) {
@@ -223,12 +285,23 @@ function getInitialState() {
         if (parsed.isFever === undefined) parsed.isFever = false;
         if (!parsed.systemLogs) parsed.systemLogs = [];
         if (!parsed.lastDailyResetKey) parsed.lastDailyResetKey = null;
+        // New fields (v2)
+        if (parsed.userTitle === undefined) parsed.userTitle = null;
+        if (!parsed.unlockedTitles) parsed.unlockedTitles = [];
+        if (parsed.enhancementStones === undefined) parsed.enhancementStones = 0;
+        if (parsed.activePet === undefined) parsed.activePet = null;
+        if (parsed.ownedPets === undefined) parsed.ownedPets = [];
+        if (parsed.ghostAttackCount === undefined) parsed.ghostAttackCount = 0;
+        if (parsed.enhanceSuccessCount === undefined) parsed.enhanceSuccessCount = 0;
+        if (parsed.feverTriggerCount === undefined) parsed.feverTriggerCount = 0;
+        if (parsed.dawnCompleteCount === undefined) parsed.dawnCompleteCount = 0;
         // Migrate old rarity values & add missing fields to inventory items
         parsed.inventory = parsed.inventory.map(item => ({
           ...item,
           rarity: RARITY_MIGRATE[item.rarity] || item.rarity || 'COMMON',
           defense: item.defense ?? 0,
           bonusMultiplier: item.bonusMultiplier ?? 1.0,
+          enhanceLevel: item.enhanceLevel ?? 0,
         }));
         return parsed;
       }
@@ -261,6 +334,15 @@ function getInitialState() {
     isFever: false,
     systemLogs: [],
     lastDailyResetKey: null,
+    userTitle: null,
+    unlockedTitles: [],
+    enhancementStones: 0,
+    activePet: null,
+    ownedPets: [],
+    ghostAttackCount: 0,
+    enhanceSuccessCount: 0,
+    feverTriggerCount: 0,
+    dawnCompleteCount: 0,
   };
 }
 
@@ -300,6 +382,15 @@ const useGameStore = create((set, get) => ({
       isFever: state.isFever,
       systemLogs: state.systemLogs,
       lastDailyResetKey: state.lastDailyResetKey,
+      userTitle: state.userTitle,
+      unlockedTitles: state.unlockedTitles,
+      enhancementStones: state.enhancementStones,
+      activePet: state.activePet,
+      ownedPets: state.ownedPets,
+      ghostAttackCount: state.ghostAttackCount,
+      enhanceSuccessCount: state.enhanceSuccessCount,
+      feverTriggerCount: state.feverTriggerCount,
+      dawnCompleteCount: state.dawnCompleteCount,
     };
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave)); } catch(e) {}
   },
@@ -333,12 +424,16 @@ const useGameStore = create((set, get) => ({
       .map(iid => state.inventory.find(i => i.instanceId === iid))
       .filter(Boolean);
 
-    // Multipliers: equipment bonus multiplier (best equipped) × fever (1.5×)
-    const equipMultiplier = equippedObjs.reduce((m, i) => m * (i.bonusMultiplier || 1.0), 1.0);
+    // Multipliers: equipment (enhanced) × fever × title effects
+    const equippedEnhanced = equippedObjs.map(getEnhancedStats);
+    const equipMultiplier = equippedEnhanced.reduce((m, i) => m * (i.bonusMultiplier || 1.0), 1.0);
     const feverMult = state.isFever ? 1.5 : 1.0;
+    const titleXpMult = state.userTitle === 'godlife' ? 1.15 : 1.0;
+    const titleGpMult = state.userTitle === 'destroyer' ? 1.1 : 1.0;
+    const petGpMult = state.activePet === 'slime' ? 1.05 : 1.0;
     const totalMult = equipMultiplier * feverMult;
-    const xpGain = Math.floor(diff.xp * totalMult);
-    const gpGain = Math.floor(diff.gp * totalMult);
+    const xpGain = Math.floor(diff.xp * totalMult * titleXpMult);
+    const gpGain = Math.floor(diff.gp * totalMult * titleGpMult * petGpMult);
 
     // Level up logic
     let newExp = state.exp + xpGain;
@@ -387,9 +482,16 @@ const useGameStore = create((set, get) => ({
       : null;
     const newActivities = [...(levelActivity ? [levelActivity] : []), newActivity, ...state.activities].slice(0, 20);
 
+    // Dawn completion tracking (before 8am)
+    const hour = new Date().getHours();
+    const isDawn = hour < 8;
+    const newDawnCount = isDawn ? (state.dawnCompleteCount || 0) + 1 : (state.dawnCompleteCount || 0);
+
     // Check if all quests cleared after this one → Fever Time
     const remainingAfter = state.quests.filter(q => q.id !== questId && !q.completed).length;
     const newIsFever = remainingAfter === 0;
+    const triggerFever = newIsFever && !state.isFever;
+    const newFeverCount = triggerFever ? (state.feverTriggerCount || 0) + 1 : (state.feverTriggerCount || 0);
 
     // Monster damage
     const monster = MONSTERS_DB[state.currentMonsterIndex % MONSTERS_DB.length];
@@ -428,6 +530,18 @@ const useGameStore = create((set, get) => ({
       setTimeout(() => confetti({ particleCount: 200, spread: 120, origin: { y: 0.6 }, colors: ['#ef4444', '#f97316', '#fbbf24', '#ef4444'] }), 300);
     }
 
+    // Check for newly unlocked titles
+    const newState = {
+      ghostAttackCount: state.ghostAttackCount || 0,
+      enhanceSuccessCount: state.enhanceSuccessCount || 0,
+      feverTriggerCount: newFeverCount,
+      dawnCompleteCount: newDawnCount,
+    };
+    const newUnlocked = Object.values(TITLE_DB)
+      .filter(t => !state.unlockedTitles.includes(t.id) && t.check(newState))
+      .map(t => t.id);
+    const newUnlockedTitles = [...state.unlockedTitles, ...newUnlocked];
+
     set({
       quests: state.quests.map(q => q.id === questId ? { ...q, completed: true, completedAt: Date.now() } : q),
       exp: newExp,
@@ -442,11 +556,14 @@ const useGameStore = create((set, get) => ({
       totalCompleted: state.totalCompleted + 1,
       combo: newCombo,
       isFever: newIsFever || state.isFever,
+      feverTriggerCount: newFeverCount,
+      dawnCompleteCount: newDawnCount,
+      unlockedTitles: newUnlockedTitles,
       ...monsterKillUpdates,
     });
 
     get()._persist();
-    return { leveledUp, newLevel, xpGain, gpGain, damage, isCrit, monsterKilled: newHp <= 0, combo: newCombo, triggerFever: newIsFever && !state.isFever };
+    return { leveledUp, newLevel, xpGain, gpGain, damage, isCrit, monsterKilled: newHp <= 0, combo: newCombo, triggerFever, newTitles: newUnlocked };
   },
 
   addQuest: (title, difficulty, statReward) => {
@@ -568,6 +685,12 @@ const useGameStore = create((set, get) => ({
       });
     }
 
+    // Track ghost attacks for title
+    const newGhostCount = incompleteQuests.length > 0 ? (state.ghostAttackCount || 0) + 1 : (state.ghostAttackCount || 0);
+    // Check for newly unlocked titles after ghost attack
+    const ghostNewState = { ghostAttackCount: newGhostCount, enhanceSuccessCount: state.enhanceSuccessCount || 0, feverTriggerCount: state.feverTriggerCount || 0, dawnCompleteCount: state.dawnCompleteCount || 0 };
+    const ghostNewUnlocked = Object.values(TITLE_DB).filter(t => !state.unlockedTitles.includes(t.id) && t.check(ghostNewState)).map(t => t.id);
+
     set({
       quests: state.quests.map(q => ({ ...q, completed: false, completedAt: undefined })),
       completedToday: 0,
@@ -575,11 +698,137 @@ const useGameStore = create((set, get) => ({
       isFever: false,
       lastDailyResetKey: today,
       ghostAttackEvent,
+      ghostAttackCount: newGhostCount,
+      unlockedTitles: [...state.unlockedTitles, ...ghostNewUnlocked],
     });
     get()._persist();
   },
 
   clearGhostAttack: () => { set({ ghostAttackEvent: null }); },
+
+  enhanceItem: (instanceId) => {
+    const state = get();
+    const item = state.inventory.find(i => i.instanceId === instanceId);
+    if (!item || item.type !== 'equipment') return { success: false, reason: '장비만 강화 가능합니다' };
+    const lv = item.enhanceLevel || 0;
+    const targetLv = lv + 1;
+    const costGp = ENHANCE_COST_GP[Math.min(lv, ENHANCE_COST_GP.length - 1)];
+    if (state.enhancementStones < 1) return { success: false, reason: '만능 강화석이 부족합니다' };
+    if (state.gold < costGp) return { success: false, reason: `GP가 부족합니다 (${costGp} GP 필요)` };
+    const rate = ENHANCE_RATES[Math.min(lv, ENHANCE_RATES.length - 1)];
+    const succeeded = Math.random() < rate;
+    const newLv = succeeded ? targetLv : (lv > 3 ? lv - 1 : 0);
+    const newInventory = state.inventory.map(i =>
+      i.instanceId === instanceId ? { ...i, enhanceLevel: newLv } : i
+    );
+    const newEnhanceSuccessCount = succeeded ? (state.enhanceSuccessCount || 0) + 1 : (state.enhanceSuccessCount || 0);
+    const enhNewState = { ghostAttackCount: state.ghostAttackCount || 0, enhanceSuccessCount: newEnhanceSuccessCount, feverTriggerCount: state.feverTriggerCount || 0, dawnCompleteCount: state.dawnCompleteCount || 0 };
+    const enhNewTitles = Object.values(TITLE_DB).filter(t => !state.unlockedTitles.includes(t.id) && t.check(enhNewState)).map(t => t.id);
+    const logMsg = succeeded
+      ? `🔨 [강화 성공] ${item.name} → +${targetLv} 강화 완료!`
+      : `💥 [강화 실패] ${item.name} → 강화 단계 ${lv > 3 ? lv - 1 : 0}으로 하락...`;
+    set({
+      inventory: newInventory,
+      gold: state.gold - costGp,
+      enhancementStones: state.enhancementStones - 1,
+      enhanceSuccessCount: newEnhanceSuccessCount,
+      unlockedTitles: [...state.unlockedTitles, ...enhNewTitles],
+      systemLogs: [logMsg, ...state.systemLogs].slice(0, 30),
+      activities: [{ id: Date.now(), text: logMsg, timestamp: Date.now(), type: succeeded ? 'enhance_ok' : 'enhance_fail' }, ...state.activities].slice(0, 20),
+    });
+    get()._persist();
+    return { success: succeeded, newLevel: newLv, newTitles: enhNewTitles };
+  },
+
+  equipTitle: (titleId) => {
+    const state = get();
+    if (titleId && !state.unlockedTitles.includes(titleId)) return;
+    set({ userTitle: state.userTitle === titleId ? null : titleId });
+    get()._persist();
+  },
+
+  completeSuddenMission: () => {
+    const state = get();
+    const sm = state.suddenMission;
+    if (!sm || !sm.isActive) return;
+    const rewardGp = sm.rewardGp;
+    const rewardXp = sm.rewardXp;
+    let { exp, level, statPoints } = state;
+    exp += rewardXp;
+    let mx = getExpForLevel(level);
+    while (exp >= mx) { exp -= mx; level++; statPoints += 3; mx = getExpForLevel(level); }
+    const logMsg = `🚨 [돌발 성공!] "${sm.title}" 완료! +${rewardGp} GP, +${rewardXp} XP, 만능 강화석 +1`;
+    set({
+      gold: state.gold + rewardGp,
+      exp, level, statPoints,
+      enhancementStones: (state.enhancementStones || 0) + 1,
+      suddenMission: null,
+      systemLogs: [logMsg, ...state.systemLogs].slice(0, 30),
+      activities: [{ id: Date.now(), text: logMsg, timestamp: Date.now(), type: 'sudden_ok' }, ...state.activities].slice(0, 20),
+    });
+    get()._persist();
+    confetti({ particleCount: 120, spread: 90, origin: { y: 0.6 }, colors: ['#ef4444', '#fbbf24', '#22c55e'] });
+    return { rewardGp, rewardXp };
+  },
+
+  failSuddenMission: () => {
+    const state = get();
+    const sm = state.suddenMission;
+    if (!sm) return;
+    const logMsg = `😔 [돌발 실패] "${sm.title}" 시간 초과... 다음엔 꼭 성공하자!`;
+    set({
+      suddenMission: null,
+      systemLogs: [logMsg, ...state.systemLogs].slice(0, 30),
+      activities: [{ id: Date.now(), text: logMsg, timestamp: Date.now(), type: 'sudden_fail' }, ...state.activities].slice(0, 20),
+    });
+    get()._persist();
+  },
+
+  triggerSuddenMission: () => {
+    const state = get();
+    if (state.suddenMission) return;
+    const pool = SUDDEN_MISSIONS_POOL;
+    const sm = pool[Math.floor(Math.random() * pool.length)];
+    set({ suddenMission: { ...sm, isActive: true, startedAt: Date.now() } });
+  },
+
+  tickSuddenMission: () => {
+    const state = get();
+    const sm = state.suddenMission;
+    if (!sm || !sm.isActive) return;
+    const elapsed = Math.floor((Date.now() - sm.startedAt) / 1000);
+    const timeLeft = Math.max(0, sm.timeLimit - elapsed);
+    if (timeLeft === 0) {
+      get().failSuddenMission();
+    } else {
+      set({ suddenMission: { ...sm, timeLeft } });
+    }
+  },
+
+  buyPetEgg: (petId) => {
+    const state = get();
+    const pet = PET_DB[petId];
+    if (!pet) return false;
+    if (state.gold < pet.cost) return false;
+    if (state.ownedPets.includes(petId)) return false;
+    const logMsg = `🥚 [펫 획득] ${pet.emoji} ${pet.name} 부화! ${pet.effectText}`;
+    set({
+      gold: state.gold - pet.cost,
+      ownedPets: [...state.ownedPets, petId],
+      activePet: state.activePet || petId,
+      systemLogs: [logMsg, ...state.systemLogs].slice(0, 30),
+      activities: [{ id: Date.now(), text: logMsg, timestamp: Date.now(), type: 'pet' }, ...state.activities].slice(0, 20),
+    });
+    get()._persist();
+    return true;
+  },
+
+  equipPet: (petId) => {
+    const state = get();
+    if (!state.ownedPets.includes(petId)) return;
+    set({ activePet: state.activePet === petId ? null : petId });
+    get()._persist();
+  },
 
   resetAll: () => {
     localStorage.removeItem(STORAGE_KEY);
@@ -596,6 +845,10 @@ const useGameStore = create((set, get) => ({
       equippedItems: { HAT: null, WEAPON: null, ARMOR: null },
       combo: 0, isFever: false, systemLogs: [], lastDailyResetKey: null,
       ghostAttackEvent: null, gachaResult: null,
+      userTitle: null, unlockedTitles: [], enhancementStones: 0,
+      activePet: null, ownedPets: [],
+      ghostAttackCount: 0, enhanceSuccessCount: 0, feverTriggerCount: 0, dawnCompleteCount: 0,
+      suddenMission: null,
     });
   },
 }));
@@ -625,6 +878,317 @@ function useAvatar() {
 // COMPONENTS
 // ==========================================
 
+// ==========================================
+// STYLE: floating-pet keyframe (injected once)
+// ==========================================
+if (typeof document !== 'undefined' && !document.getElementById('hf-pet-style')) {
+  const s = document.createElement('style');
+  s.id = 'hf-pet-style';
+  s.textContent = `
+    @keyframes pet-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    .pet-float { animation: pet-float 2.4s ease-in-out infinite; }
+    @keyframes title-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+    .title-float { animation: title-float 3s ease-in-out infinite; }
+  `;
+  document.head.appendChild(s);
+}
+
+// --- Sudden Mission Banner ---
+const SuddenMissionBanner = ({ mission, onComplete, onFail }) => {
+  const elapsed = Math.floor((Date.now() - mission.startedAt) / 1000);
+  const [timeLeft, setTimeLeft] = useState(Math.max(0, mission.timeLimit - elapsed));
+
+  useEffect(() => {
+    if (timeLeft <= 0) { onFail(); return; }
+    const t = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) { clearInterval(t); onFail(); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+  const secs = String(timeLeft % 60).padStart(2, '0');
+  const pct = Math.max(0, (timeLeft / mission.timeLimit) * 100);
+  const urgent = timeLeft < 60;
+
+  return (
+    <motion.div
+      initial={{ y: -120, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: -120, opacity: 0 }}
+      transition={{ type: 'spring', damping: 18, stiffness: 200 }}
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] w-[92%] max-w-lg"
+    >
+      <motion.div
+        animate={urgent ? { boxShadow: ['0 0 20px #ef4444', '0 0 40px #ef4444', '0 0 20px #ef4444'] } : { boxShadow: '0 0 20px rgba(239,68,68,0.3)' }}
+        transition={{ duration: 0.5, repeat: Infinity }}
+        className="rounded-2xl border-2 border-red-500/60 bg-black/90 backdrop-blur-lg p-4"
+      >
+        <div className="flex items-start gap-3 mb-3">
+          <motion.span animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.6, repeat: Infinity }} className="text-2xl flex-shrink-0">🚨</motion.span>
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-red-300 text-sm leading-tight">{mission.title}</p>
+            <p className="text-white/50 text-xs mt-0.5 leading-relaxed">{mission.desc}</p>
+          </div>
+          <div className={`flex-shrink-0 font-black text-xl tabular-nums ${urgent ? 'text-red-400 animate-pulse' : 'text-amber-300'}`}>
+            {mins}:{secs}
+          </div>
+        </div>
+        <div className="h-2 bg-black/50 rounded-full overflow-hidden mb-3 border border-white/5">
+          <motion.div animate={{ width: `${pct}%` }} transition={{ duration: 0.5 }}
+            className={`h-full rounded-full ${urgent ? 'bg-red-500' : 'bg-gradient-to-r from-amber-500 to-red-500'}`} />
+        </div>
+        <div className="flex gap-2">
+          <p className="flex-1 text-xs text-amber-300/60 self-center">보상: +{mission.rewardGp} GP, +{mission.rewardXp} XP, 강화석 ×1</p>
+          <motion.button whileTap={{ scale: 0.95 }} onClick={onComplete}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-400 text-black font-black text-sm shadow-lg shadow-emerald-500/30">
+            ✅ 완료!
+          </motion.button>
+          <button onClick={onFail} className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/30 text-xs font-bold hover:text-red-400 transition-all">포기</button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// --- Pet Display (floating near avatar) ---
+const PetDisplay = ({ petId }) => {
+  const pet = PET_DB[petId];
+  if (!pet) return null;
+  return (
+    <div className="absolute -top-3 -right-5 z-10 pointer-events-none select-none pet-float" title={`${pet.name}: ${pet.effectText}`}>
+      <div className="relative">
+        <span className="text-3xl" style={{ filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.4))' }}>{pet.emoji}</span>
+        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-1.5 bg-black/20 rounded-full blur-sm" />
+      </div>
+    </div>
+  );
+};
+
+// --- Title Selector Modal ---
+const TitleSelectorModal = ({ isOpen, onClose }) => {
+  const { unlockedTitles, userTitle, equipTitle } = useGameStore();
+  if (!isOpen) return null;
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ scale: 0.85, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.85, y: 30 }}
+        className="relative glass rounded-3xl p-7 w-full max-w-md border border-purple-500/25 shadow-2xl shadow-purple-500/10"
+      >
+        <h2 className="text-xl font-black text-white mb-1 flex items-center gap-2">🏷️ 칭호 관리</h2>
+        <p className="text-white/35 text-xs mb-5">해금된 칭호를 선택하면 캐릭터 이름 위에 표시됩니다</p>
+
+        {/* Unlocked titles */}
+        {unlockedTitles.length === 0 ? (
+          <div className="py-8 text-center text-white/25">
+            <div className="text-4xl mb-2">🔒</div>
+            <p className="text-sm">아직 해금된 칭호가 없습니다</p>
+          </div>
+        ) : (
+          <div className="space-y-2 mb-4">
+            {unlockedTitles.map(id => {
+              const t = TITLE_DB[id];
+              if (!t) return null;
+              const isActive = userTitle === id;
+              return (
+                <motion.button key={id} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.97 }}
+                  onClick={() => { equipTitle(id); onClose(); }}
+                  className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 text-left transition-all ${isActive ? 'border-amber-500/50 bg-amber-500/10' : 'border-purple-500/25 bg-purple-500/8 hover:border-purple-400/40'}`}
+                >
+                  <div className={`font-black text-base bg-gradient-to-r ${t.gradient} bg-clip-text text-transparent title-float`}>[{t.name}]</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-white/50">{t.effectText}</div>
+                    <div className="text-[10px] text-white/25">{t.condition}</div>
+                  </div>
+                  {isActive && <span className="text-amber-400 font-black text-xs">장착 중 ✓</span>}
+                </motion.button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Lock info */}
+        {Object.values(TITLE_DB).filter(t => !unlockedTitles.includes(t.id)).length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-bold text-white/20 uppercase tracking-wider mb-2">미해금 칭호</p>
+            {Object.values(TITLE_DB).filter(t => !unlockedTitles.includes(t.id)).map(t => (
+              <div key={t.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/5 text-xs text-white/25">
+                <span>🔒</span>
+                <span className="font-bold">[{t.name}]</span>
+                <span className="flex-1 text-right">{t.condition}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {userTitle && (
+          <button onClick={() => { equipTitle(null); onClose(); }} className="w-full mt-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/40 text-sm font-bold hover:bg-white/8 transition-all">칭호 해제</button>
+        )}
+        <button onClick={onClose} className="w-full mt-2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/30 text-sm font-semibold hover:bg-white/8 transition-all">닫기</button>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// --- Enhancement Modal ---
+const EnhancementModal = ({ isOpen, onClose }) => {
+  const { inventory, gold, enhancementStones, enhanceItem } = useGameStore();
+  const [selectedId, setSelectedId] = useState(null);
+  const [phase, setPhase] = useState('idle'); // idle | forging | result
+  const [result, setResult] = useState(null);
+
+  const equipment = inventory.filter(i => i.type === 'equipment');
+  const selected = equipment.find(i => i.instanceId === selectedId);
+  const selLv = selected ? (selected.enhanceLevel || 0) : 0;
+  const targetLv = selLv + 1;
+  const costGp = selected ? ENHANCE_COST_GP[Math.min(selLv, ENHANCE_COST_GP.length - 1)] : 0;
+  const successRate = selected ? Math.round(ENHANCE_RATES[Math.min(selLv, ENHANCE_RATES.length - 1)] * 100) : 0;
+  const canEnhance = selected && enhancementStones >= 1 && gold >= costGp && phase === 'idle';
+
+  const handleEnhance = () => {
+    if (!canEnhance) return;
+    setPhase('forging');
+    setTimeout(() => {
+      const res = enhanceItem(selectedId);
+      setResult(res);
+      setPhase('result');
+    }, 1800);
+  };
+
+  const reset = () => { setPhase('idle'); setResult(null); };
+
+  if (!isOpen) return null;
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={phase === 'idle' ? onClose : undefined} />
+      <motion.div initial={{ scale: 0.85, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.85, y: 30 }}
+        className="relative glass rounded-3xl p-7 w-full max-w-md border border-amber-500/25 shadow-2xl shadow-amber-500/10 overflow-hidden"
+      >
+        {/* Forge flash animation */}
+        <AnimatePresence>
+          {phase === 'forging' && (
+            <motion.div className="absolute inset-0 z-10 pointer-events-none"
+              initial={{ opacity: 0 }} animate={{ opacity: [0, 0.7, 0, 0.5, 0, 0.8, 0] }} transition={{ duration: 1.6 }}
+              style={{ background: 'radial-gradient(ellipse at center, rgba(251,191,36,0.6), rgba(239,68,68,0.3), transparent 70%)' }}
+            />
+          )}
+        </AnimatePresence>
+
+        <div className="flex items-center gap-3 mb-5">
+          <span className="text-2xl">🔨</span>
+          <h2 className="text-xl font-black text-white">장비 강화</h2>
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-xs text-white/40">💎 강화석 {enhancementStones}개</span>
+            <span className="text-xs text-white/40">🪙 {gold.toLocaleString()} GP</span>
+          </div>
+        </div>
+
+        {/* Item selector */}
+        <div className="mb-4">
+          <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">강화할 장비 선택</p>
+          <div className="space-y-1.5 max-h-40 overflow-y-auto scrollbar-thin">
+            {equipment.length === 0 && <p className="text-xs text-white/25 py-4 text-center">인벤토리에 장비가 없습니다</p>}
+            {equipment.map(item => {
+              const lv = item.enhanceLevel || 0;
+              const r = RARITY_CONFIG[item.rarity];
+              const isSel = item.instanceId === selectedId;
+              return (
+                <button key={item.instanceId} onClick={() => { setSelectedId(item.instanceId); reset(); }}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all ${isSel ? 'border-amber-500/50 bg-amber-500/10' : `${r.border} bg-white/[0.02] hover:bg-white/5`}`}
+                >
+                  <span className="text-xl">{item.emoji}</span>
+                  <span className={`text-[10px] px-1 rounded font-black ${r.color} ${r.bg} border ${r.border}`}>{r.label}</span>
+                  <span className="text-sm font-bold text-white/85">{lv > 0 ? `+${lv} ` : ''}{item.name}</span>
+                  <span className="ml-auto text-xs text-white/30">Lv.{lv}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Enhancement info */}
+        {selected && phase === 'idle' && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-2"
+          >
+            <div className="flex justify-between text-sm">
+              <span className="text-white/50">현재 강화 단계</span>
+              <span className="font-bold text-white">+{selLv} → <span className="text-amber-300">+{targetLv}</span></span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-white/50">성공 확률</span>
+              <span className={`font-bold ${successRate >= 70 ? 'text-emerald-300' : successRate >= 40 ? 'text-amber-300' : 'text-red-400'}`}>{successRate}%</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-white/50">비용</span>
+              <span className="font-bold text-white">💎 강화석 ×1 &amp; 🪙 {costGp} GP</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-white/30">실패 시</span>
+              <span className="text-red-400/70">{selLv > 3 ? `+${selLv}에서 +${selLv - 1}로 하락` : '+0으로 초기화'}</span>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Forging animation */}
+        {phase === 'forging' && (
+          <motion.div className="mb-4 py-8 text-center">
+            <motion.div animate={{ rotate: [0, -20, 20, -15, 15, -5, 5, 0], y: [0, -10, 0, -8, 0] }} transition={{ duration: 1.5, ease: 'easeInOut' }}
+              className="text-6xl inline-block mb-3">🔨</motion.div>
+            <p className="text-amber-300 font-bold animate-pulse">강화 중...</p>
+            <div className="flex justify-center gap-1 mt-2">
+              {['✨', '💫', '⭐'].map((s, i) => (
+                <motion.span key={i} animate={{ opacity: [0, 1, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }} className="text-lg">{s}</motion.span>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Result */}
+        {phase === 'result' && result && (
+          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className={`mb-4 p-5 rounded-2xl border-2 text-center ${result.success ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-red-500/50 bg-red-500/10'}`}
+          >
+            <div className="text-4xl mb-2">{result.success ? '✨' : '💔'}</div>
+            <p className={`text-xl font-black mb-1 ${result.success ? 'text-emerald-300' : 'text-red-400'}`}>
+              {result.success ? '강화 성공!' : '강화 실패...'}
+            </p>
+            <p className="text-sm text-white/50">
+              {result.success ? `+${result.newLevel} 강화 완료!` : `강화 단계가 +${result.newLevel}(으)로 변경됐습니다`}
+            </p>
+            {result.newTitles?.length > 0 && (
+              <div className="mt-3 p-2 rounded-xl bg-amber-500/10 border border-amber-500/25">
+                <p className="text-xs text-amber-300 font-black">🏷️ 새 칭호 해금! [{TITLE_DB[result.newTitles[0]]?.name}]</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        <div className="flex gap-2">
+          {phase === 'idle' && (
+            <>
+              <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-white/50 font-semibold hover:bg-white/8 transition-all">닫기</button>
+              <motion.button whileTap={{ scale: 0.96 }} onClick={handleEnhance} disabled={!canEnhance}
+                className="flex-2 px-8 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black shadow-lg shadow-amber-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                🔨 강화!
+              </motion.button>
+            </>
+          )}
+          {phase === 'result' && (
+            <>
+              <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-white/50 font-semibold hover:bg-white/8 transition-all">닫기</button>
+              <button onClick={reset} className="flex-1 py-3 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-300 font-bold hover:bg-amber-500/30 transition-all">다시 강화</button>
+            </>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 // --- Progress Ring ---
 const ProgressRing = ({ progress, size = 100, strokeWidth = 8, color = '#8b5cf6' }) => {
   const radius = (size - strokeWidth) / 2;
@@ -651,6 +1215,7 @@ const AvatarDisplay = ({ avatarSrc, onUpload, level }) => {
     return inventory.find(i => i.instanceId === iid) || null;
   };
 
+  const { activePet } = useGameStore(s => ({ activePet: s.activePet }));
   const baseSrc = avatarSrc || './avatar_base.png';
   const aura = CLASS_CONFIG[jobClass]?.aura;
 
@@ -685,6 +1250,9 @@ const AvatarDisplay = ({ avatarSrc, onUpload, level }) => {
           style={{ background: 'conic-gradient(from 0deg, #ef4444, #f97316, #fbbf24, #ef4444)', filter: 'blur(5px)', zIndex: 0 }}
         />
       )}
+
+      {/* Pet floating near avatar */}
+      {activePet && <PetDisplay petId={activePet} />}
 
       <div
         className="avatar-glow w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-purple-900/50 to-indigo-900/50 border-2 border-purple-500/30 flex items-center justify-center overflow-hidden cursor-pointer group relative"
@@ -1265,9 +1833,9 @@ const ActivityFeed = ({ activities }) => {
       </div>
     );
   }
-  const typeIcon = { level: '🌟', monster: '⚔️', ghost: '👻', promote: '⚡', quest: '✅' };
-  const typeBg   = { level: 'bg-amber-500/5 border-amber-500/15', monster: 'bg-rose-500/5 border-rose-500/15', ghost: 'bg-purple-500/5 border-purple-500/15', promote: 'bg-indigo-500/5 border-indigo-500/15', quest: 'bg-white/[0.02] border-white/5' };
-  const typeColor = { level: 'text-amber-300', monster: 'text-rose-300', ghost: 'text-purple-300', promote: 'text-indigo-300', quest: 'text-white/80' };
+  const typeIcon  = { level: '🌟', monster: '⚔️', ghost: '👻', promote: '⚡', quest: '✅', enhance_ok: '🔨', enhance_fail: '💔', sudden_ok: '🚨', sudden_fail: '😔', pet: '🐾' };
+  const typeBg    = { level: 'bg-amber-500/5 border-amber-500/15', monster: 'bg-rose-500/5 border-rose-500/15', ghost: 'bg-purple-500/5 border-purple-500/15', promote: 'bg-indigo-500/5 border-indigo-500/15', quest: 'bg-white/[0.02] border-white/5', enhance_ok: 'bg-amber-500/5 border-amber-500/15', enhance_fail: 'bg-red-500/5 border-red-500/15', sudden_ok: 'bg-emerald-500/5 border-emerald-500/15', sudden_fail: 'bg-slate-500/5 border-slate-500/15', pet: 'bg-blue-500/5 border-blue-500/15' };
+  const typeColor = { level: 'text-amber-300', monster: 'text-rose-300', ghost: 'text-purple-300', promote: 'text-indigo-300', quest: 'text-white/80', enhance_ok: 'text-amber-300', enhance_fail: 'text-red-400', sudden_ok: 'text-emerald-300', sudden_fail: 'text-slate-400', pet: 'text-blue-300' };
   return (
     <div className="space-y-3">
       {activities.slice(0, 10).map((activity, index) => (
@@ -1458,29 +2026,34 @@ const MonsterBattlePanel = ({ lastDamage, onDamageDone }) => {
 };
 
 // --- Item Card (4-tier rarity) ---
-const ItemCard = ({ item, onUse, onEquip, isEquipped }) => {
+const ItemCard = ({ item, onUse, onEquip, isEquipped, onEnhance }) => {
   const rarity = RARITY_CONFIG[item.rarity] || RARITY_CONFIG.COMMON;
   const slotCfg = item.slot ? SLOT_CONFIG[item.slot] : null;
   const isLegendary = item.rarity === 'LEGENDARY';
   const isEpic = item.rarity === 'EPIC';
+  const lv = item.enhanceLevel || 0;
+  const enhanced = lv > 0 ? getEnhancedStats(item) : item;
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${isEquipped ? 'border-amber-500/50 bg-amber-500/5' : `${rarity.bg} ${rarity.border}`}`}
       style={{ boxShadow: isEquipped ? undefined : rarity.shadow }}>
-      <span className="text-2xl flex-shrink-0" style={{ filter: isLegendary ? 'drop-shadow(0 0 8px rgba(245,158,11,0.8))' : isEpic ? 'drop-shadow(0 0 6px rgba(168,85,247,0.6))' : undefined }}>
-        {item.emoji}
-      </span>
+      <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+        <span className="text-2xl" style={{ filter: isLegendary ? 'drop-shadow(0 0 8px rgba(245,158,11,0.8))' : isEpic ? 'drop-shadow(0 0 6px rgba(168,85,247,0.6))' : undefined }}>
+          {item.emoji}
+        </span>
+        {lv > 0 && <span className="text-[9px] font-black text-amber-300 bg-amber-500/20 px-1 rounded border border-amber-500/30">+{lv}</span>}
+      </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
           <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${rarity.bg} ${rarity.color} border ${rarity.border}`}>{rarity.label}</span>
           {slotCfg && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-500/20 text-slate-300 border border-slate-500/20">{slotCfg.icon} {slotCfg.label}</span>}
           {isEquipped && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">장착 중</span>}
-          <span className="text-sm font-bold text-white/90 truncate">{item.name}</span>
+          <span className="text-sm font-bold text-white/90 truncate">{lv > 0 ? `+${lv} ` : ''}{item.name}</span>
         </div>
         <p className="text-xs text-white/40">{item.desc}</p>
-        {item.defense > 0 && <p className="text-[10px] text-blue-400/60 mt-0.5">🛡️ 방어력 {item.defense}</p>}
-        {item.bonusMultiplier > 1.0 && <p className="text-[10px] text-amber-400/60 mt-0.5">✨ 보상 ×{item.bonusMultiplier}</p>}
+        {enhanced.defense > 0 && <p className="text-[10px] text-blue-400/60 mt-0.5">🛡️ 방어력 {enhanced.defense}{lv > 0 ? <span className="text-amber-400/50"> (강화됨)</span> : ''}</p>}
+        {enhanced.bonusMultiplier > 1.0 && <p className="text-[10px] text-amber-400/60 mt-0.5">✨ 보상 ×{enhanced.bonusMultiplier}{lv > 0 ? <span className="text-amber-400/40"> (강화됨)</span> : ''}</p>}
         <p className="text-[10px] text-white/20 mt-0.5">{timeAgo(item.acquiredAt)}에 획득</p>
       </div>
       <div className="flex flex-col gap-1.5 flex-shrink-0">
@@ -1494,6 +2067,9 @@ const ItemCard = ({ item, onUse, onEquip, isEquipped }) => {
             {isEquipped ? '해제' : '장착'}
           </button>
         )}
+        {onEnhance && (
+          <button onClick={onEnhance} className="px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/25 text-amber-300 text-xs font-bold hover:bg-amber-500/25 transition-all active:scale-95">🔨</button>
+        )}
         {onUse && (
           <button onClick={onUse} className="px-3 py-1.5 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-bold hover:bg-purple-500/30 transition-all active:scale-95">사용</button>
         )}
@@ -1503,8 +2079,8 @@ const ItemCard = ({ item, onUse, onEquip, isEquipped }) => {
 };
 
 // --- Inventory Panel ---
-const InventoryPanel = () => {
-  const { inventory, useItem, equipItem, equippedItems } = useGameStore();
+const InventoryPanel = ({ onOpenEnhance }) => {
+  const { inventory, useItem, equipItem, equippedItems, enhancementStones } = useGameStore();
   const equipment   = inventory.filter(i => i.type === 'equipment');
   const consumables = inventory.filter(i => i.type === 'consumable');
   const isEquipped  = (instanceId) => Object.values(equippedItems).includes(instanceId);
@@ -1521,6 +2097,20 @@ const InventoryPanel = () => {
 
   return (
     <div className="space-y-4">
+      {/* Enhancement Stones counter */}
+      <div className="flex items-center justify-between px-1">
+        <span className="text-xs text-white/30">💎 만능 강화석</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-amber-300">{enhancementStones}개</span>
+          {equipment.length > 0 && (
+            <button onClick={onOpenEnhance}
+              className="text-xs px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/25 text-amber-300 font-bold hover:bg-amber-500/25 transition-all">
+              🔨 강화
+            </button>
+          )}
+        </div>
+      </div>
+
       {equipment.length > 0 && (
         <div>
           <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-2">장비 아이템 ({equipment.length})</p>
@@ -1529,18 +2119,22 @@ const InventoryPanel = () => {
               const iid = equippedItems[slot];
               const item = iid ? inventory.find(i => i.instanceId === iid) : null;
               const rarity = item ? RARITY_CONFIG[item.rarity] : null;
+              const lv = item?.enhanceLevel || 0;
               return (
                 <div key={slot} className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl border text-center ${item ? `${rarity?.bg} ${rarity?.border}` : 'bg-white/[0.02] border-white/8'}`}
                   style={{ boxShadow: item ? rarity?.shadow : undefined }}>
                   <span className="text-lg leading-none">{item ? item.emoji : cfg.icon}</span>
                   <span className="text-[9px] font-bold text-white/30">{cfg.label}</span>
+                  {lv > 0 && <span className="text-[8px] font-black text-amber-300">+{lv}</span>}
                 </div>
               );
             })}
           </div>
           <div className="space-y-2">
             {equipment.map(item => (
-              <ItemCard key={item.instanceId} item={item} isEquipped={isEquipped(item.instanceId)} onEquip={() => equipItem(item.instanceId)} />
+              <ItemCard key={item.instanceId} item={item} isEquipped={isEquipped(item.instanceId)}
+                onEquip={() => equipItem(item.instanceId)}
+                onEnhance={onOpenEnhance} />
             ))}
           </div>
           <p className="text-[10px] text-white/20 mt-2 text-center">장착한 장비는 퀘스트 완료 시 스탯 보너스와 보상 배율을 줍니다</p>
@@ -1558,85 +2152,135 @@ const InventoryPanel = () => {
   );
 };
 
-// --- Shop Panel (Gacha) ---
+// --- Shop Panel (Gacha + Pets + Enhancement Stones) ---
 const ShopPanel = ({ onBuy }) => {
-  const { gold } = useGameStore();
+  const { gold, enhancementStones, ownedPets, activePet, buyPetEgg, equipPet } = useGameStore();
+  const [shopTab, setShopTab] = useState('gacha');
 
   const boxes = [
-    {
-      type: 'SILVER',
-      cost: 50,
-      name: '명예로운 은빛 상자',
-      emoji: '🪙',
-      color: 'border-slate-400/40 bg-slate-500/10',
-      btnColor: 'from-slate-500 to-slate-400',
-      rates: 'C 60% / B 30% / A 9% / S 1%',
-    },
-    {
-      type: 'GOLD',
-      cost: 150,
-      name: '전설의 금빛 상자',
-      emoji: '🏆',
-      color: 'border-amber-500/50 bg-amber-500/10',
-      btnColor: 'from-amber-500 to-yellow-400',
-      rates: 'C 20% / B 40% / A 30% / S 10%',
-      highlight: true,
-    },
+    { type: 'SILVER', cost: 50,  name: '명예로운 은빛 상자', emoji: '🪙', color: 'border-slate-400/40 bg-slate-500/10', btnColor: 'from-slate-500 to-slate-400', rates: 'C 60% / B 30% / A 9% / S 1%' },
+    { type: 'GOLD',   cost: 150, name: '전설의 금빛 상자',   emoji: '🏆', color: 'border-amber-500/50 bg-amber-500/10', btnColor: 'from-amber-500 to-yellow-400', rates: 'C 20% / B 40% / A 30% / S 10%', highlight: true },
   ];
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex items-center gap-2 mb-2">
+    <div className="space-y-3 p-4">
+      <div className="flex items-center gap-2 mb-1">
         <span className="text-xl">🏪</span>
-        <h3 className="text-base font-bold text-white/80">가차 상점</h3>
-        <div className="ml-auto flex items-center gap-1.5 text-sm">
-          <span>🪙</span>
-          <span className="text-amber-300 font-bold">{gold.toLocaleString()} GP</span>
+        <h3 className="text-base font-bold text-white/80">상점</h3>
+        <div className="ml-auto flex items-center gap-3 text-sm">
+          <span className="text-white/40 text-xs">💎 강화석 {enhancementStones}</span>
+          <span className="text-amber-300 font-bold">🪙 {gold.toLocaleString()} GP</span>
         </div>
       </div>
 
-      {/* Rarity legend */}
-      <div className="grid grid-cols-4 gap-1.5 p-3 rounded-xl bg-white/[0.02] border border-white/5">
-        {Object.entries(RARITY_CONFIG).map(([key, r]) => (
-          <div key={key} className="text-center">
-            <div className={`text-[10px] font-black px-1.5 py-1 rounded-lg ${r.bg} ${r.color} border ${r.border}`}>{r.label}</div>
-          </div>
+      {/* Shop tab bar */}
+      <div className="flex gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/5">
+        {[{k:'gacha',label:'🎲 가차'},{k:'pet',label:'🐾 펫'},{k:'stone',label:'💎 강화석'}].map(t => (
+          <button key={t.k} onClick={() => setShopTab(t.k)}
+            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${shopTab === t.k ? 'bg-purple-500/25 text-purple-300 border border-purple-500/30' : 'text-white/30 hover:text-white/60'}`}>{t.label}</button>
         ))}
       </div>
 
-      {/* Gacha boxes */}
-      <div className="space-y-3">
-        {boxes.map((box) => (
-          <motion.div key={box.type} whileHover={{ scale: 1.01 }}
-            className={`p-4 rounded-2xl border-2 ${box.color} ${box.highlight ? 'relative overflow-hidden' : ''}`}
-            style={{ boxShadow: box.highlight ? '0 0 20px rgba(245,158,11,0.15)' : undefined }}
-          >
-            {box.highlight && (
-              <div className="absolute top-2 right-2 text-[10px] font-black text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30">BEST</div>
-            )}
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-4xl">{box.emoji}</span>
-              <div>
-                <div className="font-bold text-white/90 text-sm">{box.name}</div>
-                <div className="text-xs text-white/40 mt-0.5">{box.rates}</div>
+      {/* Gacha */}
+      {shopTab === 'gacha' && (
+        <>
+          <div className="grid grid-cols-4 gap-1.5 p-3 rounded-xl bg-white/[0.02] border border-white/5">
+            {Object.entries(RARITY_CONFIG).map(([key, r]) => (
+              <div key={key} className="text-center">
+                <div className={`text-[10px] font-black px-1.5 py-1 rounded-lg ${r.bg} ${r.color} border ${r.border}`}>{r.label}</div>
               </div>
-            </div>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              disabled={gold < box.cost}
-              onClick={() => onBuy(box.type)}
-              className={`w-full py-3 rounded-xl font-black text-sm transition-all bg-gradient-to-r ${box.btnColor} text-black shadow-lg disabled:opacity-30 disabled:cursor-not-allowed`}
-            >
-              🎲 뽑기 — {box.cost} GP
-            </motion.button>
-          </motion.div>
-        ))}
-      </div>
+            ))}
+          </div>
+          <div className="space-y-3">
+            {boxes.map((box) => (
+              <motion.div key={box.type} whileHover={{ scale: 1.01 }}
+                className={`p-4 rounded-2xl border-2 ${box.color} ${box.highlight ? 'relative overflow-hidden' : ''}`}
+                style={{ boxShadow: box.highlight ? '0 0 20px rgba(245,158,11,0.15)' : undefined }}
+              >
+                {box.highlight && <div className="absolute top-2 right-2 text-[10px] font-black text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30">BEST</div>}
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-4xl">{box.emoji}</span>
+                  <div><div className="font-bold text-white/90 text-sm">{box.name}</div><div className="text-xs text-white/40 mt-0.5">{box.rates}</div></div>
+                </div>
+                <motion.button whileTap={{ scale: 0.95 }} disabled={gold < box.cost} onClick={() => onBuy(box.type)}
+                  className={`w-full py-3 rounded-xl font-black text-sm transition-all bg-gradient-to-r ${box.btnColor} text-black shadow-lg disabled:opacity-30 disabled:cursor-not-allowed`}>
+                  🎲 뽑기 — {box.cost} GP
+                </motion.button>
+              </motion.div>
+            ))}
+          </div>
+        </>
+      )}
 
-      <p className="text-[10px] text-white/20 text-center mt-2 leading-relaxed">
-        퀘스트를 완료하고 몬스터를 처치하여 GP를 모으세요!<br />
-        장비를 장착하면 퀘스트 보상이 증가합니다
-      </p>
+      {/* Pet Shop */}
+      {shopTab === 'pet' && (
+        <div className="space-y-3">
+          <p className="text-xs text-white/30 leading-relaxed">신비한 펫 알을 부화시켜 동반자를 얻으세요! 펫은 퀘스트 보상에 보너스를 줍니다.</p>
+          {Object.values(PET_DB).map(pet => {
+            const owned = ownedPets.includes(pet.id);
+            const isActive = activePet === pet.id;
+            return (
+              <motion.div key={pet.id} whileHover={{ scale: 1.01 }}
+                className={`p-4 rounded-2xl border-2 transition-all ${isActive ? 'border-emerald-500/50 bg-emerald-500/8' : owned ? 'border-blue-500/30 bg-blue-500/5' : 'border-white/10 bg-white/[0.02]'}`}>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-4xl pet-float">{pet.emoji}</span>
+                  <div className="flex-1">
+                    <div className="font-bold text-white/90 text-sm">{pet.name}</div>
+                    <div className="text-xs text-white/40">{pet.effectText}</div>
+                  </div>
+                  {isActive && <span className="text-xs font-black text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-lg border border-emerald-500/25">동행 중</span>}
+                </div>
+                {owned ? (
+                  <motion.button whileTap={{ scale: 0.95 }} onClick={() => equipPet(pet.id)}
+                    className={`w-full py-2.5 rounded-xl font-black text-sm transition-all ${isActive ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-300' : 'bg-blue-500/20 border border-blue-500/30 text-blue-300'}`}>
+                    {isActive ? '🐾 동행 해제' : '🐾 동행 설정'}
+                  </motion.button>
+                ) : (
+                  <motion.button whileTap={{ scale: 0.95 }} disabled={gold < pet.cost}
+                    onClick={() => { const ok = buyPetEgg(pet.id); if (!ok) alert('GP가 부족합니다!'); }}
+                    className="w-full py-2.5 rounded-xl font-black text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/25 disabled:opacity-30 disabled:cursor-not-allowed">
+                    🥚 부화 — {pet.cost} GP
+                  </motion.button>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Enhancement Stones */}
+      {shopTab === 'stone' && (
+        <div className="space-y-3">
+          <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-center">
+            <div className="text-5xl mb-2">💎</div>
+            <p className="font-black text-white text-lg">만능 강화석</p>
+            <p className="text-xs text-white/40 mt-1 leading-relaxed">장비 강화에 필요한 핵심 재료입니다.<br />돌발 퀘스트 성공 시 무료로 획득할 수도 있어요!</p>
+            <div className="mt-3 text-lg font-black text-amber-300">보유: {enhancementStones}개</div>
+          </div>
+          {[{qty:1,cost:80},{qty:3,cost:220},{qty:5,cost:350}].map(({qty,cost}) => (
+            <motion.button key={qty} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.97 }}
+              disabled={gold < cost}
+              onClick={() => {
+                if (gold < cost) { alert('GP가 부족합니다!'); return; }
+                useGameStore.getState().set?.({ gold: gold - cost, enhancementStones: enhancementStones + qty });
+                // Direct set via store
+                useGameStore.setState(s => ({ gold: s.gold - cost, enhancementStones: s.enhancementStones + qty }));
+                useGameStore.getState()._persist();
+              }}
+              className="w-full flex items-center justify-between p-4 rounded-2xl border-2 border-amber-500/30 bg-amber-500/8 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-amber-500/15 transition-all">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">💎</span>
+                <div className="text-left">
+                  <div className="font-black text-white">강화석 ×{qty}</div>
+                  {qty >= 3 && <div className="text-[10px] text-emerald-400">{qty >= 5 ? '🎁 최고가성비!' : '💰 소량 할인'}</div>}
+                </div>
+              </div>
+              <div className="text-amber-300 font-black">🪙 {cost} GP</div>
+            </motion.button>
+          ))}
+          <p className="text-[10px] text-white/20 text-center leading-relaxed">강화 성공으로 '파괴의 손가락' 칭호를 노려보세요!</p>
+        </div>
+      )}
     </div>
   );
 };
@@ -1709,21 +2353,39 @@ const App = () => {
     stats, statPoints, quests,
     activities, completedToday, totalCompleted,
     currentMonsterIndex, monsterHp, monsterKillCount, inventory, lootDrop, systemLogs,
-    isFever, combo,
+    isFever, combo, enhancementStones,
+    userTitle, unlockedTitles,
+    suddenMission,
     completeQuest, addQuest, removeQuest, allocateStat, clearLootDrop,
     buyGachaBox, clearGachaResult, gachaResult,
     ghostAttackEvent, clearGhostAttack,
+    triggerSuddenMission, completeSuddenMission, failSuddenMission,
   } = useGameStore();
 
   const { avatarSrc, uploadAvatar } = useAvatar();
   const [showAddQuest, setShowAddQuest] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showClassPromote, setShowClassPromote] = useState(false);
+  const [showEnhancement, setShowEnhancement] = useState(false);
+  const [showTitleSelector, setShowTitleSelector] = useState(false);
+  const [newTitleNotif, setNewTitleNotif] = useState(null); // { id, name }
   const [levelUpLevel, setLevelUpLevel] = useState(null);
   const [rightTab, setRightTab] = useState('battle');
   const [lastDamage, setLastDamage] = useState(null);
   const [showCombo, setShowCombo] = useState(null);
   const [showFeverBanner, setShowFeverBanner] = useState(false);
+
+  // Sudden mission: random trigger every ~30s with 5% chance
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!useGameStore.getState().suddenMission) {
+        if (Math.random() < 0.05) {
+          useGameStore.getState().triggerSuddenMission();
+        }
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const maxExp = getExpForLevel(level);
   const xpPercentage = Math.min(100, (exp / maxExp) * 100);
@@ -1742,13 +2404,11 @@ const App = () => {
       setLastDamage({ id: Date.now(), damage: result.damage, isCrit: result.isCrit });
       setRightTab('battle');
     }
-    // Show combo
-    if (result.combo >= 1) {
-      setShowCombo(result.combo);
-    }
-    // Show fever banner
-    if (result.triggerFever) {
-      setShowFeverBanner(true);
+    if (result.combo >= 1) setShowCombo(result.combo);
+    if (result.triggerFever) setShowFeverBanner(true);
+    if (result.newTitles?.length > 0) {
+      const titleId = result.newTitles[0];
+      setNewTitleNotif({ id: titleId, name: TITLE_DB[titleId]?.name });
     }
   };
 
@@ -1779,6 +2439,16 @@ const App = () => {
           <div className="flex items-center gap-5">
             <AvatarDisplay avatarSrc={avatarSrc} onUpload={uploadAvatar} level={level} />
             <div className="flex-1 min-w-0">
+              {/* Equipped title floating above name */}
+              {userTitle && TITLE_DB[userTitle] && (
+                <motion.div
+                  className={`mb-0.5 text-xs font-black bg-gradient-to-r ${TITLE_DB[userTitle].gradient} bg-clip-text text-transparent title-float cursor-pointer`}
+                  onClick={() => setShowTitleSelector(true)}
+                  title="칭호 변경"
+                >
+                  [{TITLE_DB[userTitle].name}]
+                </motion.div>
+              )}
               <div className="flex items-center gap-3 mb-1.5 flex-wrap">
                 <h1 className="font-fantasy text-xl md:text-2xl gold-text truncate font-bold">{characterName}</h1>
                 <span className="text-purple-300/70 text-xs font-semibold bg-purple-500/15 px-2.5 py-1 rounded-lg whitespace-nowrap border border-purple-500/15">{characterClass}</span>
@@ -1800,6 +2470,11 @@ const App = () => {
                     ⚡ 전직 가능!
                   </button>
                 )}
+                {/* Title selector */}
+                <button onClick={() => setShowTitleSelector(true)}
+                  className="text-xs font-bold px-2.5 py-1 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-300/70 hover:text-purple-300 hover:bg-purple-500/20 transition-all">
+                  🏷️ {unlockedTitles.length > 0 ? `칭호 (${unlockedTitles.length})` : '칭호'}
+                </button>
               </div>
               <div className="flex items-center gap-4 mb-3 flex-wrap">
                 <div className="flex items-center gap-1.5 text-sm"><span>🪙</span><span className="text-amber-300 font-bold">{gold.toLocaleString()}</span><span className="text-white/25 text-xs">GP</span></div>
@@ -1983,7 +2658,7 @@ const App = () => {
                   )}
                   {rightTab === 'inventory' && (
                     <motion.div key="inventory" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="p-4 md:p-5">
-                      <InventoryPanel />
+                      <InventoryPanel onOpenEnhance={() => setShowEnhancement(true)} />
                     </motion.div>
                   )}
                   {rightTab === 'shop' && (
@@ -2024,6 +2699,17 @@ const App = () => {
 
       {/* ===== OVERLAYS & MODALS ===== */}
 
+      {/* Sudden Mission Banner */}
+      <AnimatePresence>
+        {suddenMission && (
+          <SuddenMissionBanner
+            mission={suddenMission}
+            onComplete={() => { completeSuddenMission(); }}
+            onFail={() => { failSuddenMission(); }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Combo overlay */}
       <AnimatePresence>
         {showCombo && (
@@ -2038,6 +2724,29 @@ const App = () => {
         )}
       </AnimatePresence>
 
+      {/* New title unlock notification */}
+      <AnimatePresence>
+        {newTitleNotif && (
+          <motion.div
+            initial={{ opacity: 0, y: 60, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 60, x: '-50%' }}
+            className="fixed bottom-8 left-1/2 z-[65] w-80 pointer-events-none"
+          >
+            <div className="rounded-2xl border border-amber-500/40 bg-black/85 backdrop-blur-lg p-4 text-center shadow-xl shadow-amber-500/10">
+              <div className="text-xl mb-1">🏷️</div>
+              <p className="text-amber-300 font-black text-sm">새 칭호 해금!</p>
+              <p className={`text-base font-black mt-0.5 bg-gradient-to-r ${TITLE_DB[newTitleNotif.id]?.gradient} bg-clip-text text-transparent`}>
+                [{newTitleNotif.name}]
+              </p>
+              <p className="text-white/40 text-xs mt-1">{TITLE_DB[newTitleNotif.id]?.effectText}</p>
+            </div>
+            {/* Auto-dismiss */}
+            {(() => { setTimeout(() => setNewTitleNotif(null), 4000); return null; })()}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Modals */}
       <AnimatePresence>
         {showAddQuest && <AddQuestModal isOpen={showAddQuest} onClose={() => setShowAddQuest(false)} onAdd={addQuest} />}
@@ -2047,6 +2756,12 @@ const App = () => {
       </AnimatePresence>
       <AnimatePresence>
         {showClassPromote && <ClassPromoteModal isOpen={showClassPromote} onClose={() => setShowClassPromote(false)} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showEnhancement && <EnhancementModal isOpen={showEnhancement} onClose={() => setShowEnhancement(false)} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showTitleSelector && <TitleSelectorModal isOpen={showTitleSelector} onClose={() => setShowTitleSelector(false)} />}
       </AnimatePresence>
       <AnimatePresence>
         {levelUpLevel && <LevelUpOverlay level={levelUpLevel} onDismiss={() => setLevelUpLevel(null)} />}

@@ -1,0 +1,103 @@
+# Role: 당신은 게이미피케이션(Gamification) 설계와 React, Tailwind CSS, Zustand, Framer Motion 구현에 통달한 세계 최고의 풀스택 프론트엔드 개발자입니다.
+
+# Goal
+기존의 3단 레이아웃(아바타, 일과 완료, 피버타임, 콤보, 토벌전)이 구축된 웹 앱에 사용자의 재미와 도파민을 극대화할 **[4대 신규 시스템]**을 기존 코드와 유기적으로 호환되도록 완벽히 통합 구현해 주세요. 
+
+---
+
+## [신규 추가 시스템 상세 요구사항]
+
+### 1. 장비 강화 시스템 (Enhancement System)
+- **강화 재료:** 인벤토리에 보유 중인 '만능 강화석'과 'GP(골드)'를 소모하여 장착 중이거나 가방에 있는 장비를 강화할 수 있습니다.
+- **강화 메커니즘:**
+  - 강화 시 아이템 이름 앞에 `+1`, `+2` 같은 접두사가 붙고, 아이템의 기본 효과(스탯 배율, 방어력)가 강화 단계당 +10%씩 복리로 증가합니다.
+  - **성공 확률:** `+1` ~ `+3`은 100% 성공하며, `+4`부터는 점차 성공 확률이 감소합니다 (70%, 50%, 35%...).
+  - **실패 패널티:** 강화 실패 시 아이템이 파괴되지 않고, 대신 강화 단계가 `+0`으로 초기화되거나 1단계 하락합니다.
+  - **UI/UX 연출:** 강화를 시도할 때 대장간 망치질 효과음이나 불꽃이 튀는 화면 연출이 나온 후, "성공!" 혹은 "실패..." 팝업이 화려하게 뜨도록 Framer Motion을 적용해 주세요.
+
+### 2. 장착형 칭호 시스템 (Title System)
+- 캐릭터 이름('영웅') 위에 배치되어 사용자의 정체성과 성취감을 시각적으로 뽐내는 시스템입니다.
+- **칭호 해금 조건 (예시):**
+  - `[미루기 도살자]` : 미루기 망령 5회 처치 시 해금 (효과: 모든 데미지 +15%)
+  - `[새벽의 지배자]` : 오전 8시 이전에 일일 퀘스트를 완료했을 때 해금 (효과: INT +3)
+  - `[파괴의 손가락]` : 장비 강화 성공 5회 달성 시 해금 (효과: 골드 획득량 1.1배)
+  - `[갓생의 화신]` : 피버 타임(Fever Time)을 3회 발동시켰을 때 해금 (효과: 경험치 획득량 1.15배)
+- 사용자는 아바타 프로필 영역에서 해금된 칭호를 자유롭게 선택 및 변경 장착할 수 있으며, 장착된 칭호는 캐릭터 이름 위에 독특한 그라데이션 컬러 텍스트로 둥둥 떠서 표시됩니다.
+
+### 3. 실시간 긴급 돌발 퀘스트 (Sudden Mission)
+- 사용자가 일과를 진행하거나 사이트를 켜놓고 있을 때, 아주 낮은 확률(예: 5%)로 화면에 경보 이펙트와 함께 돌발 퀘스트가 주어집니다.
+- **돌발 퀘스트 예시 (시간 제한 타이머 작동):**
+  - `🚨 [돌발] 뇌에 산소 공급하기! (제한시간 15분)`: "지금 즉시 가벼운 스트레칭을 하거나 물 한 컵을 마시세요!"
+  - `🚨 [돌발] 딥 워크(Deep Work) 돌입! (제한시간 30분)`: "딴짓하지 않고 30분 동안 집중 타이머 작동시키기!"
+- 시간 제한 내에 [완료] 버튼을 누르면 평소 일과 보상의 3배에 달하는 GP와 다량의 경험치, 그리고 확정적으로 '만능 강화석 1개'를 즉시 보상으로 지급합니다. 실패하면 부끄러운 패배 로그가 활동 기록에 찍힙니다.
+
+### 4. 아바타 동반자: 미니 펫 시스템 (Mini Pet)
+- 토벤머리 캐릭터 옆이나 머리 위 공간에 둥둥 떠다니며 성장을 함께하는 귀여운 동반자입니다.
+- **획득 방법:** 상점에서 비싼 GP로 '신비한 펫 알'을 구매해 부화시키거나 뽑기를 통해 획득합니다.
+- **종류 및 효과 (이모지 활용):**
+  - `아기 슬라임` (🟢): 퀘스트 완료 시 골드 획득량 5% 증가
+  - `집중하는 올빼미` (🦉): 지능(INT)/지혜(WIS) 획득 속도 10% 증가
+  - `달리는 시바견` (🐕): 체력(VIT) 경험치 획득 속도 10% 증가
+- 아바타 화면(`AvatarDisplay.jsx`) 내에서 펫이 부드럽게 위아래로 둥둥 떠다니는 수직 둥둥 애니메이션(Floating Animation)을 Tailwind 및 CSS로 적용하세요.
+
+---
+
+## [상태 관리 확장 및 컴포넌트 리팩토링 (`useStore.js`)]
+Zustand 스토어 상태에 다음 요소를 매끄럽게 합쳐 주세요.
+
+```typescript
+interface IItem {
+  id: string;
+  name: string;
+  type: 'HAT' | 'WEAPON' | 'ARMOR';
+  rarity: 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+  emoji: string;
+  effectText: string;
+  price: number;
+  defense: number;
+  bonusMultiplier: number;
+  enhanceLevel: number; // 강화 단계 기본 0
+}
+
+interface IPet {
+  id: string;
+  name: string;
+  emoji: string;
+  effectText: string;
+  bonus: number; // 스탯 보너스 수치
+}
+
+interface ITitle {
+  id: string;
+  name: string;
+  effectText: string;
+  isUnlocked: boolean;
+  colorClass: string; // 예: "text-amber-400 font-bold animate-pulse"
+}
+
+interface ISuddenMission {
+  id: string;
+  title: string;
+  description: string;
+  timeLeft: number; // 초 단위 타이머
+  isActive: boolean;
+  rewardGold: number;
+  rewardStones: number;
+}
+
+interface IGameState {
+  userTitle: string | null;
+  unlockedTitles: string[];
+  enhancementStones: number; // 보유 중인 만능 강화석 개수
+  activePet: IPet | null;
+  suddenMission: ISuddenMission | null;
+  
+  // Actions
+  enhanceItem: (itemId: string) => void;
+  equipTitle: (titleId: string) => void;
+  unlockTitle: (titleId: string) => void;
+  triggerSuddenMission: () => void;
+  completeSuddenMission: () => void;
+  buyPetEgg: () => void;
+  equipPet: (petId: string) => void;
+}
